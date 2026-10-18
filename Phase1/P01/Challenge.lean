@@ -20,8 +20,6 @@ qualifier-only stuck-at occurrence. Bus positivity and fault activation remain
 explicit. No algorithmic complexity or arbitrary-CNF recognition is asserted.
 -/
 
-universe u_1
-
 namespace Controller
 
 /-- An index among the n declared channels, including unused channels. -/
@@ -271,4 +269,3 @@ theorem Controller.Physical.stuck_detectable_iff {n b : ℕ} (distinguished targ
     StuckDetectable distinguished target bus stuck ↔
       2 ≤ n ∧ (stuck = true ∨ target = distinguished) := by
   sorry
-
