@@ -60,10 +60,11 @@ class GuardRegression(unittest.TestCase):
     def test_workflow_bindings(self):
         workflow=yaml.safe_load((SOURCE/guard.WORKFLOW).read_text())
         guard.validate_workflow(workflow)
-        for mutation in ['uses','commit','needs']:
+        for mutation in ['uses','commit','needs','bytecode']:
             bad=copy.deepcopy(workflow)
             if mutation=='commit':bad['jobs']['verify']['with']['commit']='${{ github.sha }}'
             elif mutation=='needs':del bad['jobs']['verify']['needs']
+            elif mutation=='bytecode':del bad['jobs']['guard']['env']['PYTHONDONTWRITEBYTECODE']
             else:bad['jobs']['verify']['uses']='wrong/workflow@'+'0'*40
             with self.assertRaises(ValueError):guard.validate_workflow(bad)
 

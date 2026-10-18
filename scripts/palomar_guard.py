@@ -48,6 +48,8 @@ def validate_inputs(contract, inputs):
 
 
 def validate_workflow(workflow):
+    if workflow["jobs"]["guard"].get("env", {}).get("PYTHONDONTWRITEBYTECODE") != "1":
+        raise ValueError("Guard job must prevent Python bytecode writes to immutable checkouts")
     job = workflow["jobs"]["verify"]
     expected = {
         "repository": "${{ needs.guard.outputs.repository }}",

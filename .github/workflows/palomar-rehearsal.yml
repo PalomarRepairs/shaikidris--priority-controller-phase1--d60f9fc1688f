@@ -24,6 +24,8 @@ permissions:
 jobs:
   guard:
     runs-on: ubuntu-24.04
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
     outputs:
       repository: ${{ steps.guard.outputs.repository }}
       commit: ${{ steps.guard.outputs.commit }}
