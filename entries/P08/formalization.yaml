@@ -1,0 +1,149 @@
+version: v0.4
+project:
+  name: Observation projection and typed certificate pipelines
+  description: Observation-wrapper projection, recovery for the intended producer family,
+    checked structured-family decoding, and typed satisfiability or certified-unsatisfiability
+    pipeline laws.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.DM
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; A.1, A.2, A.3, A.4, Section 8 (typed pipeline). The informal manuscript
+    supplies the model and proof arguments according to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Observation-wrapper projection, recovery for the intended producer family, checked
+    structured-family decoding, and typed satisfiability or certified-unsatisfiability pipeline
+    laws. The recognizer accepts structured typed payloads and checks their actual conditions.
+    It is not a DIMACS or JSON parser or an arbitrary-CNF presentation-discovery procedure.
+    Projection equivalences do not by themselves bound the time required to construct auxiliary
+    data. Ordered clauses retain all literal occurrences and formula rows.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The recognizer accepts structured typed payloads and checks their actual conditions.
+    It is not a DIMACS or JSON parser or an arbitrary-CNF presentation-discovery procedure.
+    Projection equivalences do not by themselves bound the time required to construct auxiliary
+    data. Ordered clauses retain all literal occurrences and formula rows.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: A.1
+    lean: Controller.Native.ObservationProjection.observation_projection_of_unit_conflict
+    module: Controller.Native.ObservationProjection
+    status: proved
+    note: The exact A.1 projection follows under the displayed pure-clause implication, activity
+      guards, unit-derived inactive conflict and uniform constant-extension-or-impossible-orientation
+      premises. These remain hypotheses; the conclusion is the existential auxiliary projection
+      at every defining signal assignment.
+  - source: A.2
+    lean: Controller.Native.ObservationProjection.optional_declared_cnf_projection
+    module: Controller.Native.ObservationProjection
+    status: proved
+    note: For the declared-private optional-activity grammar and finite internal activity
+      type, existential assignments to the declared auxiliaries exist exactly when a requirement-tree
+      leaf pair is discrepant. This theorem proves projection, not the linear-time auxiliary
+      construction clause of A.2.
+  - source: A.3
+    lean: Controller.Native.ObservationProjection.selected_declared_cnf_projection
+    module: Controller.Native.ObservationProjection
+    status: proved
+    note: For a selected list contained in the optional wrapper leaves, the declared selected
+      formula projects exactly to a discrepancy on that list. The formal statement also handles
+      an empty selected list via its unsatisfiable selected formula.
+  - source: A.4
+    lean: Controller.Recognition.IntendedDAG.recovery_exact
+    module: Controller.Recognition.ProducerCompletion
+    status: proved
+    note: A maximal recovery run under CandidatePromise emits only the intended nonroot producers,
+      recovers every nonroot and has duplicate-free output identifiers. The intended DAG,
+      candidate promise, run and absence of a ready remaining candidate are explicit premises;
+      this is not arbitrary-CNF discovery or a runtime bound.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Recognition.GuardedFamily.decodeChecked_sound
+    module: Controller.Recognition.FamilyRecord
+    status: proved
+    note: Given a structured CompletePayload and a returned checked record, the recovered
+      decoder is guarded, the record passes its check, and source satisfiability is equivalent
+      to physical bridge detectability. This is the supplied typed-family boundary, not the
+      complete raw-file Algorithm 2 recognizer.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Recognition.GuardedFamily.decodeChecked_lifting
+    module: Controller.Recognition.FamilyRecord
+    status: proved
+    note: After successful decodeChecked, any satisfying assignment of the specified native
+      formula lifts through the returned record to a satisfying assignment of the original
+      source. This is model-lifting soundness, with no separate construction-time conclusion.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Certificate.Pipeline.runFamily_sat_iff
+    module: Controller.Certificate.Pipeline
+    status: proved
+    note: For an accepted checked family record and the structured serialization of the source,
+      runFamily returns SAT exactly when the source is satisfiable, for any optional refutation
+      argument. Acceptance of the supplied typed representation remains a premise.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Certificate.Pipeline.runFamily_certified_unsat
+    module: Controller.Certificate.Pipeline
+    status: proved
+    note: For an accepted checked family record and structured source serialization, a supplied
+      certificate accepted by checkTyped causes runFamily to return UNSAT. This is conditional
+      certificate completeness; it does not produce a refutation autonomously.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Certificate.Pipeline.runFamily_sat_sound
+    module: Controller.Certificate.Pipeline
+    status: proved
+    note: Every SAT verdict on any SubmittedInput is sound for the bound source formula. CompletePayload
+      is supplied structured data; parsing arbitrary byte formats is outside this statement.
+  - source: Section 8 (typed pipeline)
+    lean: Controller.Certificate.Pipeline.runFamily_unsat_sound
+    module: Controller.Certificate.Pipeline
+    status: proved
+    note: Every UNSAT verdict on any SubmittedInput is sound for the bound source formula.
+      The checked typed certificate and input-binding branches are part of the displayed pipeline,
+      without an arbitrary-CNF family-recognition claim.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

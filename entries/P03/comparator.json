@@ -1,0 +1,21 @@
+{
+  "challenge_module": "Phase1.P03.Challenge",
+  "solution_module": "Phase1.P03.Solution",
+  "theorem_names": [
+    "Controller.Cost.Enumeration.execution",
+    "Controller.Cost.Enumeration.results_exact",
+    "Controller.Cost.Enumeration.canonical_result_detects",
+    "Controller.Cost.Enumeration.iterator_delay",
+    "Controller.Cost.Enumeration.delay_bound",
+    "Controller.Cost.Enumeration.program_words_bound"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.EnumerationCanonicalEmit.code",
+    "Controller.Cost.Enumeration.program"
+  ]
+}

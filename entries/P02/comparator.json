@@ -1,0 +1,20 @@
+{
+  "challenge_module": "Phase1.P02.Challenge",
+  "solution_module": "Phase1.P02.Solution",
+  "theorem_names": [
+    "Controller.Public.guarded_bridge_detector_correct",
+    "Controller.Public.guarded_bridge_detector_complete",
+    "Controller.Cost.SharedDetectorCold.execution",
+    "Controller.Decoder.DAG.extendSet_some",
+    "Controller.Decoder.DAG.extendSet_none_iff",
+    "Controller.Decoder.DAG.extendSet_exists_iff"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.SharedDetectorCold.program"
+  ]
+}

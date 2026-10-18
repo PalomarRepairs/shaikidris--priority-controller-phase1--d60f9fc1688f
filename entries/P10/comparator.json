@@ -1,0 +1,23 @@
+{
+  "challenge_module": "Phase1.P10.Challenge",
+  "solution_module": "Phase1.P10.Solution",
+  "theorem_names": [
+    "Controller.Complexity.ImageCanonical.decoded_execution",
+    "Controller.Complexity.NativeCompilation.tm_polytime",
+    "Controller.Complexity.SpaceTapeBridge.composed",
+    "Controller.Complexity.SpaceTapeErasure.logspace",
+    "Controller.Complexity.ParameterReduction.compose",
+    "Controller.Complexity.ParameterTM.realization"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Complexity.ColdInterpreter.Label",
+    "Controller.Complexity.ColdInterpreter.labelFintype",
+    "Controller.Complexity.ColdInterpreter.program",
+    "Controller.Complexity.SpaceVirtual.program"
+  ]
+}

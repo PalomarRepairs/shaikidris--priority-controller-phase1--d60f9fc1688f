@@ -1,0 +1,10 @@
+Priority-controller formalization
+Copyright (c) 2026 Idris Ali Shaik
+
+Author-owned source is licensed under Apache-2.0.
+Lean and Mathlib are separately licensed dependencies. Their copyright and
+licence notices remain applicable to their source and any attributed excerpts.
+
+Controller/CNF/Basic.lean adapts the ordered-list CNF API from Lean 4.33.0.
+Copyright (c) 2024 Lean FRO, LLC. Authors: Kim Morrison.
+Released under the Apache License, Version 2.0.

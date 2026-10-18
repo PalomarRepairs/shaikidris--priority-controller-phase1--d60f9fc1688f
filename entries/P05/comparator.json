@@ -1,0 +1,18 @@
+{
+  "challenge_module": "Phase1.P05.Challenge",
+  "solution_module": "Phase1.P05.Solution",
+  "theorem_names": [
+    "Controller.Reductions.DualHorn.model_bridge_detectable_iff",
+    "Controller.Reductions.DualHorn.decoder_size_linear",
+    "Controller.Reductions.DualHorn.decoder_formulaForest",
+    "Controller.Reductions.coverDAG_size_linear",
+    "Controller.Reductions.cover_detection_count",
+    "Controller.Reductions.cover_physical_detects_only_covers",
+    "Controller.Reductions.cover_realizer_detects_iff"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ]
+}

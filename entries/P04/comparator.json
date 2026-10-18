@@ -1,0 +1,18 @@
+{
+  "challenge_module": "Phase1.P04.Challenge",
+  "solution_module": "Phase1.P04.Solution",
+  "theorem_names": [
+    "Controller.Cost.ForestOriginalSemantics.original_physical_execution",
+    "Controller.Optimization.Weights.forest_maximum_weight"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.ForestRootProjection.mixedResident",
+    "Controller.Cost.ForestRootProjection.packetPrelude",
+    "Controller.Cost.ForestRootProjection.classificationPrior"
+  ]
+}

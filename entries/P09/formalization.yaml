@@ -1,0 +1,134 @@
+version: v0.4
+project:
+  name: Ordinary resolution for native encodings and observation wrappers
+  description: Checked ordinary-resolution construction for the native controller encoding
+    and supported observation wrappers, with cubic inference bounds and the displayed derived-literal
+    storage bound.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.CC
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; B.1, B.2. The informal manuscript supplies the model and proof arguments
+    according to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Checked ordinary-resolution construction for the native controller encoding and supported
+    observation wrappers, with cubic inference bounds and the displayed derived-literal storage
+    bound. The resolution checker and clause semantics are explicit. Bounds count the displayed
+    inference or literal-storage measures and use the formal native or wrapper size parameters.
+    These are ordinary resolution results, with no extension rule or generic claim for arbitrary
+    CNF.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The resolution checker and clause semantics are explicit. Bounds count the
+    displayed inference or literal-storage measures and use the formal native or wrapper size
+    parameters. These are ordinary resolution results, with no extension rule or generic claim
+    for arbitrary CNF.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: B.1
+    lean: Controller.Cost.NativeResolution.native_refutation_encoded_cubic
+    module: Controller.Cost.Resolution
+    status: proved
+    note: Native raw-layout guarded decoder formula; UNSAT implies an accepted ordinary-resolution
+      refutation with at most 100000 times nativeEncodedSize cubed inferences. nativeEncodedSize
+      counts declared variables plus original literal occurrences, retaining multiplicity.
+  - source: B.1
+    lean: Controller.Cost.NativeResolution.compactNativeCompile_complete
+    module: Controller.Cost.Resolution
+    status: proved
+    note: The parameter-only native compiler returns a checker-accepted trace on every raw-layout
+      guarded UNSAT native formula. The explicit bound is 100000 times variableCount cubed;
+      it bounds trace steps, not compiler running time.
+  - source: B.1
+    lean: Controller.Cost.NativeResolution.compactNativeCompile_checked
+    module: Controller.Cost.Resolution
+    status: proved
+    note: Every returned native trace is checker-accepted and has at most 100000 times variableCount
+      cubed steps. This is a returned-result soundness and size theorem; completeness is a
+      separate selected declaration.
+  - source: B.1
+    lean: Controller.Cost.NativeResolution.canonical_derived_literal_storage
+    module: Controller.Cost.Resolution
+    status: proved
+    note: The canonical refutation has at most 200000 times variableCount to the fourth derived
+      literal occurrences. This is the separate storage measure discussed after B.1; it is
+      not a cubic encoded-proof-size or compiler-time claim.
+  - source: B.2
+    lean: Controller.Cost.WrapperResolution.runOptional_complete_cubic
+    module: Controller.Cost.WrapperResolution
+    status: proved
+    note: For a supported optional wrapper whose canonical input is UNSAT, runOptional returns
+      an accepted trace with at most 1000000 times nativeCoreSize cubed plus 5 times wrapperSize
+      steps. nativeCoreSize includes observed pair incidences; wrapperSize counts original
+      wrapper rows and literal occurrences.
+  - source: B.2
+    lean: Controller.Cost.WrapperResolution.runSelected_complete_cubic
+    module: Controller.Cost.WrapperResolution
+    status: proved
+    note: For a supported wrapper and a nonempty selected list contained in its leaves, an
+      UNSAT canonical selected input yields an accepted trace. The bound uses distinct selected
+      outputs in nativeCoreSize, while selectedWrapperSize retains the added disjunction and
+      all selected incidences.
+  - source: B.2
+    lean: Controller.Cost.WrapperResolution.runOptional_checked
+    module: Controller.Cost.WrapperResolution
+    status: proved
+    note: Any trace returned by runOptional passes the ordinary-resolution checker on the
+      canonical optional input. This declaration provides acceptance soundness; it has no
+      independent size or completeness conclusion.
+  - source: B.2
+    lean: Controller.Cost.WrapperResolution.runSelected_checked
+    module: Controller.Cost.WrapperResolution
+    status: proved
+    note: Any trace returned by runSelected passes the ordinary-resolution checker on the
+      canonical selected input. This declaration provides acceptance soundness; completeness
+      and its nonempty/leaf conditions appear separately.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

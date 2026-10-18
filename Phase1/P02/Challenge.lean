@@ -1,0 +1,782 @@
+module
+public import Lean.Elab.Tactic.Omega
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
+public import Mathlib.Algebra.BigOperators.Group.List.Basic
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Algebra.Order.BigOperators.Group.List
+public import Mathlib.Algebra.Order.Group.Nat
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Finset.BooleanAlgebra
+public import Mathlib.Data.Finset.Sort
+public import Mathlib.Data.Finset.Union
+public import Mathlib.Data.Fintype.Basic
+public import Mathlib.Data.Fintype.BigOperators
+public import Mathlib.Data.Fintype.Card
+public import Mathlib.Data.Fintype.EquivFin
+public import Mathlib.Data.Fintype.Fin
+public import Mathlib.Data.Fintype.Sigma
+public import Mathlib.Data.Fintype.Sum
+public import Mathlib.Data.List.Count
+public import Mathlib.Data.List.Dedup
+public import Mathlib.Data.List.FinRange
+public import Mathlib.Data.List.Forall2
+public import Mathlib.Data.List.Induction
+public import Mathlib.Data.List.Nodup
+public import Mathlib.Data.List.NodupEquivFin
+public import Mathlib.Data.List.Perm.Subperm
+public import Mathlib.Data.Nat.Log
+public import Mathlib.Data.Vector.Basic
+public import Mathlib.Logic.Equiv.Fin.Basic
+public import Mathlib.Order.WellFounded
+public import Mathlib.SetTheory.Cardinal.Finite
+public import Mathlib.Tactic.FinCases
+public import Mathlib.Tactic.IntervalCases
+public import Mathlib.Tactic.NormNum
+public import Mathlib.Tactic.Ring
+public import Std.Sat.CNF
+@[expose] public section
+noncomputable section
+/-!
+# Guarded decision and constrained extension
+The grammar, state transitions, resource measures and mathematical predicates
+are explicit. Definition holes identify only implementation witnesses; the
+selected universal theorems constrain their executions or returned results.
+The selected statements retain the exact assumptions of the proof library.
+-/
+namespace Controller
+abbrev Channel (n : ℕ) := Fin n
+abbrev Assignment (n : ℕ) := Channel n → Bool
+def assignmentOfSet {n : ℕ} (K : Finset (Channel n)) : Assignment n := fun i => decide (i ∈ K)
+def setOfAssignment {n : ℕ} (a : Assignment n) : Finset (Channel n) := Finset.univ.filter (fun i => a i = true)
+def FixedConsistent {n : ℕ} (T F : Finset (Channel n)) : Prop := Disjoint T F
+def ExtendsFixed {n : ℕ} (T F K : Finset (Channel n)) : Prop := T ⊆ K ∧ Disjoint K F
+end Controller
+namespace Controller
+structure DecoderSize where
+  (channels : ℕ) (nodes : ℕ) (children : ℕ) (guards : ℕ) (roots : ℕ)
+  deriving Repr, DecidableEq
+def DecoderSize.total (s : DecoderSize) : ℕ := s.channels + s.nodes + s.children + s.guards + s.roots
+structure NativeSize where
+  (variableCount : ℕ) (clauses : ℕ) (literals : ℕ)
+  deriving Repr, DecidableEq
+def NativeSize.total (s : NativeSize) : ℕ := s.variableCount + s.clauses + s.literals
+end Controller
+namespace Controller.Decoder
+inductive Gate (n available : ℕ) where
+  | zero : Gate n available | input (channel : Channel n) : Gate n available | disj (children : List (Fin available)) : Gate n available | guard (child : Fin available) (labels : List (Channel n)) : Gate n available | liveAnd (left right : Fin available) : Gate n available
+  deriving DecidableEq, Repr
+namespace Gate
+variable {n available : ℕ}
+def children : Gate n available → List (Fin available) | .zero => [] | .input _ => [] | .disj refs => refs | .guard child _ => [child] | .liveAnd left right => [left, right]
+def guardLabels : Gate n available → List (Channel n) | .guard _ labels => labels | _ => []
+def isLiveAnd : Gate n available → Bool | .liveAnd _ _ => true | _ => false
+def IsGuarded (gate : Gate n available) : Prop := gate.isLiveAnd = false
+def eval (gate : Gate n available) (assignment : Assignment n) (earlier : Fin available → Bool) : Bool := match gate with | .zero => false | .input channel => assignment channel | .disj refs => refs.any earlier | .guard child labels => earlier child && !(labels.any assignment) | .liveAnd left right => earlier left && earlier right
+end Gate
+structure DAG (n : ℕ) where
+  (nodeCount : ℕ) (node : (index : Fin nodeCount) → Gate n index.val) (roots : List (Fin nodeCount))
+namespace DAG
+variable {n : ℕ}
+def childIndex (graph : DAG n) (parent : Fin graph.nodeCount) (child : Fin parent.val) : Fin graph.nodeCount := ⟨child.val, Nat.lt_trans child.isLt parent.isLt⟩
+theorem childIndex_lt (graph : DAG n) (parent : Fin graph.nodeCount) (child : Fin parent.val) : (graph.childIndex parent child).val < parent.val := child.isLt
+def Guarded (graph : DAG n) : Prop := ∀ index, (graph.node index).IsGuarded
+def childIncidences (graph : DAG n) : ℕ := (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).children.length).sum
+def guardIncidences (graph : DAG n) : ℕ := (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).guardLabels.length).sum
+def size (graph : DAG n) : DecoderSize where
+  channels := n; nodes := graph.nodeCount; children := graph.childIncidences; guards := graph.guardIncidences; roots := graph.roots.length
+def countedSize (graph : DAG n) : ℕ := graph.size.total
+end DAG
+end Controller.Decoder
+namespace Controller.Decoder
+namespace DAG
+variable {n : ℕ}
+def eval (graph : DAG n) (assignment : Assignment n) (index : Fin graph.nodeCount) : Bool :=
+  (graph.node index).eval assignment (fun child => graph.eval assignment (graph.childIndex index child))
+termination_by index.val
+decreasing_by exact graph.childIndex_lt index child
+def evalPrefix (graph : DAG n) (assignment : Assignment n) :
+    (length : ℕ) → length ≤ graph.nodeCount → Fin length → Bool
+  | 0, _ => Fin.elim0
+  | length + 1, bound =>
+      let earlier := graph.evalPrefix assignment length
+        (Nat.le_trans (Nat.le_succ length) bound)
+      let gate := graph.node ⟨length, Nat.lt_of_lt_of_le (Nat.lt_succ_self length) bound⟩
+      Fin.lastCases (gate.eval assignment earlier) earlier
+def evalTable (graph : DAG n) (assignment : Assignment n) : Fin graph.nodeCount → Bool := graph.evalPrefix assignment graph.nodeCount (Nat.le_refl graph.nodeCount)
+end DAG
+end Controller.Decoder
+namespace Controller
+def Admissible {n : ℕ} (b : ℕ) (t : Channel n) (K : Finset (Channel n)) : Prop := K.Nonempty ∧ (b = 1 → t ∈ K)
+end Controller
+namespace Controller.CNF
+abbrev OrderedFormula.Clause (α : Type u) := List (Std.Sat.Literal α)
+structure OrderedFormula (α : Type u) where
+  (clauses : Array (OrderedFormula.Clause α))
+namespace OrderedFormula
+def empty : OrderedFormula α := ⟨#[]⟩
+def Clause.eval (a : α → Bool) (c : Clause α) : Bool := c.any fun (i, n) => a i == n
+def eval (a : α → Bool) (f : OrderedFormula α) : Bool := f.clauses.all fun c => c.eval a
+def append (left right : OrderedFormula α) : OrderedFormula α := ⟨left.clauses ++ right.clauses⟩
+instance : Append (OrderedFormula α) := ⟨append⟩
+def Clause.relabel (r : α → β) (c : Clause α) : Clause β := c.map (fun (i, n) => (r i, n))
+def relabel (r : α → β) (f : OrderedFormula α) : OrderedFormula β := ⟨f.clauses.map (Clause.relabel r)⟩
+def toStd (f : OrderedFormula α) : Std.Sat.CNF α := ⟨f.clauses.map Std.Sat.CNF.Clause.ofLiterals⟩
+end OrderedFormula
+abbrev Literal (α : Type*) := Std.Sat.Literal α
+abbrev Clause (α : Type*) := Controller.CNF.OrderedFormula.Clause α
+abbrev Formula (α : Type*) := Controller.CNF.OrderedFormula α
+abbrev FiniteFormula (v : Nat) := Formula (Fin v)
+abbrev negate (l : Literal α) : Literal α := Std.Sat.Literal.negate l
+def ofClauses (cs : List (Clause α)) : Formula α := ⟨cs.toArray⟩
+end Controller.CNF
+namespace Controller.Horn
+open CNF
+def forceFalse [DecidableEq α] (current : α → Bool) (i : α) : α → Bool := fun j => if j = i then false else current j
+end Controller.Horn
+namespace Controller.Decoder.ZeroSystem
+open CNF
+def positiveClause (entries : List α) : Clause α := entries.map (fun v => (v, true))
+def implicationClause (premise : α) (alternatives : List α) : Clause α := (premise, false) :: positiveClause alternatives
+end Controller.Decoder.ZeroSystem
+namespace Controller.Decoder.DAG
+open CNF ZeroSystem
+variable {n : ℕ}
+abbrev ZeroVar (graph : DAG n) := Channel n ⊕ Fin graph.nodeCount
+def nodeClauses (graph : DAG n) (index : Fin graph.nodeCount) : List (Clause graph.ZeroVar) := match graph.node index with | .zero => [implicationClause (.inr index) []] | .input channel => [implicationClause (.inl channel) [.inr index], implicationClause (.inr index) [.inl channel]] | .disj refs => refs.map fun child => implicationClause (.inr (graph.childIndex index child)) [.inr index] | .guard child labels => [implicationClause (.inr (graph.childIndex index child)) (labels.map Sum.inl ++ [.inr index])] | .liveAnd left right => [[(.inr (graph.childIndex index left), false), (.inr (graph.childIndex index right), false), (.inr index, true)]]
+def forwardClauses (graph : DAG n) : List (Clause graph.ZeroVar) := (List.finRange graph.nodeCount).flatMap graph.nodeClauses
+end Controller.Decoder.DAG
+namespace Controller.Decoder.DAG
+open CNF ZeroSystem
+variable {n : ℕ}
+def trueUnitClauses (graph : DAG n) (T : Finset (Channel n)) : List (Clause graph.ZeroVar) := ((List.finRange n).filter fun channel => decide (channel ∈ T)).map fun channel => positiveClause [.inl channel]
+def falseUnitClauses (graph : DAG n) (F : Finset (Channel n)) : List (Clause graph.ZeroVar) := ((List.finRange n).filter fun channel => decide (channel ∈ F)).map fun channel => implicationClause (.inl channel) []
+def channelClauses (graph : DAG n) (b : ℕ) (target : Channel n) (T F : Finset (Channel n)) : List (Clause graph.ZeroVar) := (([positiveClause ((List.finRange n).map Sum.inl)] ++ (if b = 1 then [positiveClause [.inl target]] else [])) ++ graph.trueUnitClauses T) ++ graph.falseUnitClauses F
+def zeroSystem (graph : DAG n) (b : ℕ) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : Formula graph.ZeroVar := ofClauses ((graph.forwardClauses ++ graph.channelClauses b target T F) ++ [implicationClause (.inr root) []])
+def zeroChannelSet (graph : DAG n) (assignment : graph.ZeroVar → Bool) : Finset (Channel n) := setOfAssignment (fun channel => assignment (.inl channel))
+end Controller.Decoder.DAG
+namespace Controller.Horn.Worklist
+open CNF
+inductive Rule (α : Type*) where
+  | skip | positive (positive : List α) | negative (head : α) (positive : List α)
+  deriving DecidableEq, Repr
+namespace Rule
+def positives : Rule α → List α | .skip => [] | .positive labels => labels | .negative _ labels => labels
+end Rule
+variable [DecidableEq α]
+def signedLabels (clause : Clause α) (polarity : Bool) : List α := ((clause.filter fun literal => decide (literal.2 = polarity)).map Prod.fst).dedup
+def tautologyCheck (clause : Clause α) : Bool := clause.any fun literal => clause.contains (negate literal)
+def compileClause (clause : Clause α) : Rule α := if tautologyCheck clause then .skip else match signedLabels clause false with | [] => .positive (signedLabels clause true) | head :: _ => .negative head (signedLabels clause true)
+def compileFormula (formula : Formula α) : Array (Rule α) := formula.clauses.map compileClause
+@[simp] theorem compileFormula_size (formula : Formula α) :
+    (compileFormula formula).size = formula.clauses.size := by simp [compileFormula]
+end Controller.Horn.Worklist
+namespace Controller.Horn.Worklist
+abbrev RuleTable (n m : Nat) := Vector (Rule (Fin n)) m
+def normalizedTable (formula : CNF.Formula (Fin n)) : RuleTable n formula.clauses.size := ⟨compileFormula formula, compileFormula_size formula⟩
+def positiveIncidences (rules : RuleTable n m) : List (Fin n × Fin m) := (List.finRange m).flatMap fun row => (rules[row.val]).positives.map fun label => (label, row)
+def bucketIncidences : List (Fin n × Fin m) → Vector (List (Fin m)) n
+  | [] => Vector.replicate n []
+  | (label, row) :: rest =>
+      let table := bucketIncidences rest
+      table.set label.val (row :: table[label.val]) label.isLt
+def occurrences (rules : RuleTable n m) : Vector (List (Fin m)) n := bucketIncidences (positiveIncidences rules)
+theorem countP_forceFalse [DecidableEq α] (labels : List α) (noDuplicates : labels.Nodup) (assignment : α → Bool) (label : α) : labels.countP (forceFalse assignment label) = labels.countP assignment - if label ∈ labels ∧ assignment label = true then 1 else 0 := by
+  calc
+    labels.countP (forceFalse assignment label) = (labels.erase label).countP assignment := by
+      rw [noDuplicates.erase_eq_filter, List.countP_filter]
+      apply List.countP_congr
+      intro current _
+      by_cases equal : current = label <;> simp [forceFalse, equal]
+    _ = _ := List.countP_erase assignment labels label
+structure CountedState (n m : Nat) where
+  (values : Vector Bool n) (counts : Vector Nat m)
+namespace CountedState
+def assignment (state : CountedState n m) : Fin n → Bool := fun label => state.values[label.val]
+def initial (rules : RuleTable n m) : CountedState n m where
+  values := Vector.replicate n true; counts := Vector.ofFn fun row => (rules[row.val]).positives.length
+end CountedState
+def decrementRows : List (Fin m) → Vector Nat m → Vector Nat m | [], counts => counts | row :: rest, counts => decrementRows rest (counts.set row.val (counts[row.val] - 1) row.isLt)
+namespace CountedState
+def turnOff (index : Vector (List (Fin m)) n) (state : CountedState n m) (label : Fin n) : CountedState n m where
+  values := state.values.set label.val false label.isLt; counts := decrementRows index[label.val] state.counts
+@[simp] theorem turnOff_assignment (index : Vector (List (Fin m)) n)
+    (state : CountedState n m) (label : Fin n) :
+    (turnOff index state label).assignment = forceFalse state.assignment label := by
+  funext current
+  simp only [assignment, turnOff, Vector.getElem_set, forceFalse]
+  by_cases equal : current = label
+  · subst current
+    simp
+  · have unequalValues : label.val ≠ current.val :=
+      fun same => equal (Fin.ext same.symm)
+    simp [equal, unequalValues]
+end CountedState
+end Controller.Horn.Worklist
+namespace Controller.Horn.Worklist
+structure Agenda (m : Nat) where
+  (fired : Vector Bool m) (pending : List (Fin m)) (failed : Bool)
+namespace Agenda
+def empty (m : Nat) : Agenda m where
+  fired := Vector.replicate m false; pending := []; failed := false
+def schedule (rules : RuleTable n m) (counted : CountedState n m) (row : Fin m) (agenda : Agenda m) : Agenda m :=
+  if counted.counts[row.val] = 0 ∧ agenda.fired[row.val] = false then
+    match rules[row.val] with
+    | .skip => agenda
+    | .positive _ => { agenda with fired := agenda.fired.set row.val true row.isLt, failed := true }
+    | .negative _ _ =>
+        { agenda with
+          fired := agenda.fired.set row.val true row.isLt
+          pending := row :: agenda.pending }
+  else agenda
+def scheduleRows (rules : RuleTable n m) (counted : CountedState n m) : List (Fin m) → Agenda m → Agenda m | [], agenda => agenda | row :: rest, agenda => scheduleRows rules counted rest (schedule rules counted row agenda)
+end Agenda
+structure State (n m : Nat) where
+  (counted : CountedState n m) (agenda : Agenda m)
+namespace State
+def initial (rules : RuleTable n m) : State n m where
+  counted := CountedState.initial rules
+  agenda := Agenda.scheduleRows rules (CountedState.initial rules) (List.finRange m)
+    (Agenda.empty m)
+def propagate (rules : RuleTable n m) (index : Vector (List (Fin m)) n) (state : State n m) (head : Fin n) (rest : List (Fin m)) : State n m :=
+  let counted := state.counted.turnOff index head
+  let agenda := { state.agenda with pending := rest }
+  { counted := counted, agenda := Agenda.scheduleRows rules counted index[head.val] agenda }
+def discard (state : State n m) (rest : List (Fin m)) : State n m := { state with agenda := { state.agenda with pending := rest } }
+def remaining (state : State n m) : Nat := (List.finRange n).countP state.counted.assignment
+theorem propagate_remaining_lt (rules : RuleTable n m) (index : Vector (List (Fin m)) n) (state : State n m) (head : Fin n) (rest : List (Fin m)) (wasTrue : state.counted.assignment head = true) : remaining (propagate rules index state head rest) < remaining state := by
+  have positive : 0 < remaining state := List.countP_pos_iff.mpr ⟨head, List.mem_finRange head, wasTrue⟩
+  change (List.finRange n).countP (state.counted.turnOff index head).assignment < remaining state
+  rw [CountedState.turnOff_assignment, countP_forceFalse _ (List.nodup_finRange n)]
+  simp only [List.mem_finRange, wasTrue, and_self, ite_true]
+  exact Nat.sub_lt positive (by decide)
+def run (rules : RuleTable n m) (index : Vector (List (Fin m)) n) (state : State n m) : Option (Vector Bool n) :=
+  if state.agenda.failed then none
+  else match pendingEquation : state.agenda.pending with
+    | [] => some state.counted.values
+    | row :: rest =>
+      match rules[row.val] with
+      | .negative head _ =>
+        if wasTrue : state.counted.assignment head = true then run rules index (propagate rules index state head rest)
+        else run rules index (discard state rest)
+      | _ => run rules index (discard state rest)
+termination_by (remaining state, state.agenda.pending.length)
+decreasing_by
+  all_goals first
+    | exact Prod.Lex.left _ _ (propagate_remaining_lt rules index state head rest wasTrue)
+    | apply Prod.Lex.right
+      simp [discard, pendingEquation]
+end State
+def solveRules (rules : RuleTable n m) : Option (Vector Bool n) :=
+  let index := occurrences rules
+  State.run rules index (State.initial rules)
+end Controller.Horn.Worklist
+namespace Controller.Horn.Worklist
+open CNF
+def solveFormula (formula : Formula (Fin n)) : Option (Vector Bool n) := solveRules (normalizedTable formula)
+end Controller.Horn.Worklist
+namespace Controller.CNF
+abbrev relabel (r : α → β) (f : Formula α) : Formula β := Controller.CNF.OrderedFormula.relabel r f
+end Controller.CNF
+namespace Controller.Decoder
+def trueCandidate (b : Nat) (target head : Channel n) : Finset (Channel n) := if b = 1 then {head, target} else {head}
+namespace DAG
+def zeroIndex (graph : DAG n) : graph.ZeroVar ≃ Fin (n + graph.nodeCount) := finSumFinEquiv
+def finiteZeroSystem (graph : DAG n) (b : Nat) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : CNF.FiniteFormula (n + graph.nodeCount) := CNF.relabel graph.zeroIndex (graph.zeroSystem b target root T F)
+def solveZero (graph : DAG n) (b : Nat) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : Option (Finset (Channel n)) := (Horn.Worklist.solveFormula (graph.finiteZeroSystem b target root T F)).map (fun values => graph.zeroChannelSet (fun coordinate => values[(graph.zeroIndex coordinate).val]))
+def firstSuccess (query : α → Option β) : List α → Option β | [] => none | head :: tail => match query head with | some value => some value | none => firstSuccess query tail
+def trueQuery (graph : DAG n) (b : Nat) (target : Channel n) (healthy : Fin graph.nodeCount → Bool) (head : Channel n) : Option (Finset (Channel n)) :=
+  let candidate := trueCandidate b target head
+  let values := graph.evalTable (assignmentOfSet candidate)
+  if graph.roots.any (fun root => !healthy root && values root) then some candidate else none
+def zeroQuery (graph : DAG n) (b : Nat) (target : Channel n) (healthy : Fin graph.nodeCount → Bool) (root : Fin graph.nodeCount) : Option (Finset (Channel n)) := if healthy root then graph.solveZero b target root ∅ ∅ else none
+def scanCandidates (graph : DAG n) (b : Nat) (target : Channel n) (healthy : Fin graph.nodeCount → Bool) : Option (Finset (Channel n)) := if graph.roots.all healthy then none else firstSuccess (graph.trueQuery b target healthy) (List.finRange n)
+def detectSet (graph : DAG n) (b : Nat) (target : Channel n) (drive : Bool) : Option (Finset (Channel n)) :=
+  if drive then
+    let healthy := graph.evalTable (assignmentOfSet {target})
+    match graph.scanCandidates b target healthy with
+    | some K => some K
+    | none => firstSuccess (graph.zeroQuery b target healthy) graph.roots
+  else none
+end DAG
+end Controller.Decoder
+namespace Controller.Physical
+structure PrimaryInput (n b : ℕ) where
+  (positiveBuses : 0 < b) (enable : Assignment n) (request : Fin b → Assignment n)
+def PrimaryInput.firstBus {n b : ℕ} (input : PrimaryInput n b) : Fin b := ⟨0, input.positiveBuses⟩
+def anyTrue {n : ℕ} (a : Assignment n) : Bool := decide (∃ i, a i = true)
+def stageTerms {n : ℕ} (active request : Assignment n) : Assignment n := fun i => active i && request i
+def stageFlag {n : ℕ} (active request : Assignment n) : Bool := anyTrue (stageTerms active request)
+def stageMask {n : ℕ} (flag : Bool) (terms : Assignment n) : Assignment n := fun i => flag ^^ !(terms i)
+def nextActive {n : ℕ} (active request : Assignment n) (flag : Bool) : Assignment n := fun i => active i && stageMask flag (stageTerms active request) i
+structure SelectorRun (n b : ℕ) where
+  (flags : Fin b → Bool) (activeBefore : Fin b → Assignment n) (terms : Fin b → Assignment n) (masks : Fin b → Assignment n) (finalActive : Assignment n)
+def runMasks {n : ℕ} : (b : ℕ) → Assignment n → (Fin b → Assignment n) →
+    Option Bool → SelectorRun n b
+  | 0, active, _, _ =>
+      { flags := Fin.elim0
+        activeBefore := Fin.elim0
+        terms := Fin.elim0
+        masks := Fin.elim0
+        finalActive := active }
+  | b + 1, active, request, override =>
+      let flag := override.getD (stageFlag active (request 0))
+      let rest := runMasks b (nextActive active (request 0) flag)
+        (fun j => request j.succ) none
+      { flags := Fin.cases flag rest.flags
+        activeBefore := Fin.cases active rest.activeBefore
+        terms := Fin.cases (stageTerms active (request 0)) rest.terms
+        masks := Fin.cases (stageMask flag (stageTerms active (request 0))) rest.masks
+        finalActive := rest.finalActive }
+def qualifiers {n b : ℕ} (enable : Assignment n) (request : Fin b → Assignment n) (flags : Fin b → Bool) : Assignment n := fun i => enable i && decide (∀ j, flags j = true → request j i = true)
+def healthyRun {n b : ℕ} (input : PrimaryInput n b) : SelectorRun n b := runMasks b input.enable input.request none
+def runFromFirst {n b : ℕ} (input : PrimaryInput n b) (first : Bool) : SelectorRun n b := runMasks b input.enable input.request (some first)
+def healthyQualifiers {n b : ℕ} (input : PrimaryInput n b) : Assignment n := qualifiers input.enable input.request (healthyRun input).flags
+def qualifiersFromFirst {n b : ℕ} (input : PrimaryInput n b) (first : Bool) : Assignment n := qualifiers input.enable input.request (runFromFirst input first).flags
+def ObservationsDiffer {n q : ℕ} (outputs : Fin q → Assignment n → Bool) (healthy faulty : Assignment n) : Prop := ∃ k, outputs k healthy ≠ outputs k faulty
+end Controller.Physical
+namespace Controller.Physical
+structure Bridge (n : ℕ) where
+  (target : Channel n) (drivers : Finset (Channel n)) (drivers_nonempty : drivers.Nonempty) (target_not_mem : target ∉ drivers)
+def Bridge.remaining {n : ℕ} (bridge : Bridge n) : Finset (Channel n) := Finset.univ \ insert bridge.target bridge.drivers
+def firstTerms {n b : ℕ} (input : PrimaryInput n b) : Assignment n := stageTerms input.enable (input.request input.firstBus)
+def bridgeU {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) : Bool := !(firstTerms input bridge.target)
+def bridgeD {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) : Bool := decide (∀ i ∈ bridge.drivers, firstTerms input i = false)
+def bridgeR {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) : Bool := decide (∀ i ∈ bridge.remaining, firstTerms input i = false)
+def BridgeInterfaceSatisfied {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) (drive wire : Bool) : Prop := bridgeU bridge input = !drive ∧ bridgeD bridge input = drive ∧ wire = drive
+def bridgeFirstFlag {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) (wire : Bool) : Bool := !(wire && bridgeD bridge input && bridgeR bridge input)
+def bridgeQualifiers {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) (wire : Bool) : Assignment n := qualifiersFromFirst input (bridgeFirstFlag bridge input wire)
+def BridgeInputDetects {n b q : ℕ} (bridge : Bridge n) (drive : Bool) (outputs : Fin q → Assignment n → Bool) (input : PrimaryInput n b) (wire : Bool) : Prop := BridgeInterfaceSatisfied bridge input drive wire ∧ ObservationsDiffer outputs (healthyQualifiers input) (bridgeQualifiers bridge input wire)
+def BridgeDetectable {n b q : ℕ} (bridge : Bridge n) (drive : Bool) (outputs : Fin q → Assignment n → Bool) : Prop := ∃ input : PrimaryInput n b, ∃ wire, BridgeInputDetects bridge drive outputs input wire
+end Controller.Physical
+namespace Controller.Physical
+def realizeTailRequests {n : ℕ} (target : Channel n) (K : Finset (Channel n)) :
+    (b : ℕ) → Fin b → Assignment n
+  | 0 => Fin.elim0
+  | _ + 1 => Fin.cases (if target ∈ K then (fun _ => false) else assignmentOfSet K)
+      (fun _ _ => false)
+def realizeRequests {n : ℕ} (target : Channel n) (K : Finset (Channel n)) :
+    (b : ℕ) → Fin b → Assignment n
+  | 0 => Fin.elim0
+  | b + 1 => Fin.cases (assignmentOfSet {target}) (realizeTailRequests target K b)
+def realizeBridge {n b : ℕ} (bridge : Bridge n) (hb : 0 < b) (K : Finset (Channel n)) : PrimaryInput n b where
+  positiveBuses := hb; enable := assignmentOfSet (insert bridge.target K); request := realizeRequests bridge.target K b
+end Controller.Physical
+namespace Controller.Decoder.DAG
+def observations (graph : Controller.Decoder.DAG n) : Fin graph.roots.length → Controller.Assignment n → Bool := fun index assignment => graph.eval assignment (graph.roots.get index)
+end Controller.Decoder.DAG
+namespace Controller.Physical
+def detectInput {n b : Nat} (bridge : Bridge n) (hb : 0 < b) (drive : Bool) (graph : Decoder.DAG n) : Option (PrimaryInput n b) := (graph.detectSet b bridge.target drive).map (realizeBridge bridge hb)
+end Controller.Physical
+namespace Controller.Public
+open Physical
+/-- guarded bridge detector correct: Guarded decision and constrained extension. -/
+theorem guarded_bridge_detector_correct {n b : Nat} (bridge : Bridge n) (hb : 0 < b) (drive : Bool) (graph : Decoder.DAG n) (guarded : graph.Guarded) : (detectInput bridge hb drive graph = none ↔ ¬ ∃ input : PrimaryInput n b, ∃ wire : Bool, BridgeInterfaceSatisfied bridge input drive wire ∧ ∃ observation : Fin graph.roots.length, graph.eval (healthyQualifiers input) (graph.roots.get observation) ≠ graph.eval (bridgeQualifiers bridge input wire) (graph.roots.get observation)) ∧ (∀ input : PrimaryInput n b, detectInput bridge hb drive graph = some input → BridgeInterfaceSatisfied bridge input drive true ∧ ∃ observation : Fin graph.roots.length, graph.eval (healthyQualifiers input) (graph.roots.get observation) ≠ graph.eval (bridgeQualifiers bridge input true) (graph.roots.get observation)) := by sorry
+/-- guarded bridge detector complete: Guarded decision and constrained extension. -/
+theorem guarded_bridge_detector_complete {n b : Nat} (bridge : Bridge n) (hb : 0 < b) (drive : Bool) (graph : Decoder.DAG n) (guarded : graph.Guarded) : (∃ input, detectInput bridge hb drive graph = some input) ↔ BridgeDetectable (b := b) bridge drive graph.observations := by sorry
+end Controller.Public
+namespace Controller.Cost
+abbrev Word (width : Nat) := Fin (2 ^ width)
+def word (width value : Nat) : Word width := ⟨value % (2 ^ width), Nat.mod_lt _ (Nat.two_pow_pos width)⟩
+structure State (width registers : Nat) where
+  (reg : Fin registers → Word width) (heap : Array (Word width)) (stack : List (Word width)) (output : List (Word width)) (pc : Word width) (halted : Bool)
+def State.liveWords (s : State width registers) : Nat := registers + s.heap.size + s.stack.length + s.output.length + 1
+inductive Instruction (width registers : Nat) where
+  | constant (dst : Fin registers) (value : Word width) | copy (dst src : Fin registers) | add (dst left right : Fin registers) | xor (dst left right : Fin registers) | load (dst address : Fin registers) | store (address src : Fin registers) | allocate (src : Fin registers) | release | push (src : Fin registers) | pop (dst : Fin registers) | emit (src : Fin registers) | branchZero (src : Fin registers) (target : Word width) | halt
+def State.put (s : State width registers) (dst : Fin registers) (value : Word width) : State width registers := { s with reg := fun i => if i = dst then value else s.reg i }
+def State.advance (s : State width registers) : State width registers := { s with pc := word width (s.pc.val + 1) }
+def step (instruction : Instruction width registers) (s : State width registers) : Option (State width registers) :=
+  if s.halted then none else
+  let next := s.advance
+  match instruction with
+  | .constant dst value => some (next.put dst value)
+  | .copy dst src => some (next.put dst (s.reg src))
+  | .add dst left right => some (next.put dst (word width ((s.reg left).val + (s.reg right).val)))
+  | .xor dst left right => some (next.put dst (word width (Nat.xor (s.reg left).val (s.reg right).val)))
+  | .load dst address =>
+      if h : (s.reg address).val < s.heap.size then some (next.put dst s.heap[(s.reg address).val]) else none
+  | .store address src =>
+      if h : (s.reg address).val < s.heap.size then some { next with heap := s.heap.set (s.reg address).val (s.reg src) } else none
+  | .allocate src =>
+      if s.heap.size < 2 ^ width then some { next with heap := s.heap.push (s.reg src) }
+      else none
+  | .release => if s.heap.isEmpty then none else some { next with heap := s.heap.pop }
+  | .push src => some { next with stack := s.reg src :: s.stack }
+  | .pop dst => match s.stack with
+      | [] => none
+      | value :: rest => some { next.put dst value with stack := rest }
+  | .emit src => some { next with output := s.reg src :: s.output }
+  | .branchZero src target => some (if (s.reg src).val = 0 then { next with pc := target } else next)
+  | .halt => some { next with halted := true }
+abbrev Program (width registers : Nat) := Array (Instruction width registers)
+def programStep (p : Program width registers) (s : State width registers) : Option (State width registers) := do
+  let instruction ← p[s.pc.val]?
+  step instruction s
+inductive Execution (p : Program width registers) :
+  State width registers → State width registers → Nat → Nat → Prop where
+  | refl (s) : Execution p s s 0 s.liveWords | cons {s middle final ticks peak} (transition : programStep p s = some middle) (rest : Execution p middle final ticks peak) : Execution p s final (ticks + 1) (max s.liveWords peak)
+end Controller.Cost
+namespace Controller.Cost
+def boolWord (width : Nat) (value : Bool) : Word width := word width (if value then 1 else 0)
+end Controller.Cost
+namespace Controller.Cost.ForestIndexedOperands
+open Controller.Decoder Controller.Decoder.DAG
+def countSource (items : List α) (before : ℕ) : ℕ := match items with | [] => before | _ :: rest => countSource rest (before + 1)
+structure Row where
+  (tag : ℕ) (head : ℕ) (children : List ℕ) (guards : List ℕ)
+  deriving DecidableEq, Repr
+def Row.Matches (row : Row) (gate : Gate n available) : Prop := row.tag = (match gate with | .zero => 0 | .input _ => 1 | .disj _ => 2 | .guard _ _ => 3 | .liveAnd _ _ => 4) ∧ (∀ channel, gate = .input channel → row.head = channel.val) ∧ row.children = gate.children.map Fin.val ∧ row.guards = gate.guardLabels.map Fin.val
+def rowHeaders (rows : List Row) : List ℕ := rows.flatMap (fun row => [row.tag, row.head])
+def rowArities (rows : List Row) : List ℕ := rows.flatMap (fun row => [countSource row.children 0, countSource row.guards 0])
+def rowChildren (rows : List Row) : List ℕ := rows.flatMap Row.children
+def rowGuards (rows : List Row) : List ℕ := rows.flatMap Row.guards
+structure RowsMatch (graph : DAG n) (rows : List Row) : Prop where
+  (length_eq : rows.length = graph.nodeCount)
+  node : ∀ index : Fin graph.nodeCount, (rows[index.val]'(by rw [length_eq]; exact index.isLt)).Matches (graph.node index)
+def rowBases : List Row → ℕ → ℕ → List ℕ | [], _, _ => [] | row :: rest, childCursor, guardCursor => childCursor :: guardCursor :: rowBases rest (childCursor + countSource row.children 0) (guardCursor + countSource row.guards 0)
+def serializedRows (heapOffset : ℕ) (rows : List Row) (roots : List ℕ) : List ℕ :=
+  let children := rowChildren rows
+  let guards := rowGuards rows
+  rowHeaders rows ++ rowBases rows (heapOffset + 6 * rows.length)
+    (heapOffset + 6 * rows.length + children.length) ++ rowArities rows ++
+    children ++ guards ++ roots
+def RootsMatch (graph : DAG n) (roots : List ℕ) : Prop := roots = graph.roots.map Fin.val
+def globalHeader (channels : ℕ) (rows : List Row) (roots : List ℕ) : List ℕ := [channels, countSource rows 0, countSource (rowChildren rows) 0, countSource (rowGuards rows) 0, countSource roots 0]
+def inputPacket (channels heapOffset : ℕ) (rows : List Row) (roots : List ℕ) : List ℕ := globalHeader channels rows roots ++ serializedRows (heapOffset + 5) rows roots
+end Controller.Cost.ForestIndexedOperands
+namespace Controller.Cost.UniformDAGSource
+open Controller.Decoder Controller.Decoder.DAG
+open Controller.Cost.ForestIndexedOperands
+def typedHead (gate : Gate n available) : ℕ := match gate with | .input channel => channel.val | .guard child _ => child.val | .liveAnd left _ => left.val | _ => 0
+structure HeadsMatch (graph : DAG n) (rows : List Row)
+  (matched : RowsMatch graph rows) : Prop where
+  head : ∀ node : Fin graph.nodeCount,
+    (rows[node.val]'(by rw [matched.length_eq]; exact node.isLt)).head =
+      typedHead (graph.node node)
+end Controller.Cost.UniformDAGSource
+namespace Controller.Decoder
+variable {n : ℕ}
+instance fixedConsistentDecidable (T F : Finset (Channel n)) : Decidable (FixedConsistent T F) := Finset.decidableDisjoint T F
+def extensionBase (b : ℕ) (target : Channel n) (T : Finset (Channel n)) : Finset (Channel n) := if b = 1 then insert target T else T
+def extensionCandidates (b : ℕ) (target : Channel n) (T F : Finset (Channel n)) : List (Finset (Channel n)) :=
+  let base := extensionBase b target T
+  base :: ((List.finRange n).filter fun head => head ∉ base ∧ head ∉ F).map
+    (fun head => insert head base)
+namespace DAG
+def extensionTrueQuery (graph : DAG n) (healthy : Fin graph.nodeCount → Bool) (candidate : Finset (Channel n)) : Option (Finset (Channel n)) :=
+  let values := graph.evalTable (assignmentOfSet candidate)
+  if graph.roots.any (fun root => !healthy root && values root) then some candidate else none
+def extensionZeroQuery (graph : DAG n) (b : ℕ) (target : Channel n) (healthy : Fin graph.nodeCount → Bool) (T F : Finset (Channel n)) (root : Fin graph.nodeCount) : Option (Finset (Channel n)) := if healthy root then graph.solveZero b target root T F else none
+def extendSet (graph : DAG n) (b : ℕ) (target : Channel n) (drive : Bool) (T F : Finset (Channel n)) : Option (Finset (Channel n)) :=
+  if drive then
+    if FixedConsistent (extensionBase b target T) F then
+      let healthy := graph.evalTable (assignmentOfSet {target})
+      match firstSuccess (graph.extensionTrueQuery healthy) (extensionCandidates b target T F) with
+      | some K => some K
+      | none => firstSuccess (graph.extensionZeroQuery b target healthy T F) graph.roots
+    else none
+  else none
+/-- extendSet some: Guarded decision and constrained extension. -/
+theorem extendSet_some (graph : DAG n) (guarded : graph.Guarded) (b : ℕ) (target : Channel n) (drive : Bool) (T F K : Finset (Channel n)) (returned : graph.extendSet b target drive T F = some K) : drive = true ∧ Admissible b target K ∧ ExtendsFixed T F K ∧ ∃ root ∈ graph.roots, graph.eval (assignmentOfSet K) root ≠ graph.eval (assignmentOfSet {target}) root := by sorry
+/-- extendSet none iff: Guarded decision and constrained extension. -/
+theorem extendSet_none_iff (graph : DAG n) (guarded : graph.Guarded) (b : ℕ) (target : Channel n) (drive : Bool) (T F : Finset (Channel n)) : graph.extendSet b target drive T F = none ↔ ¬ (drive = true ∧ ∃ root ∈ graph.roots, ∃ K, Admissible b target K ∧ ExtendsFixed T F K ∧ graph.eval (assignmentOfSet K) root ≠ graph.eval (assignmentOfSet {target}) root) := by sorry
+/-- extendSet exists iff: Guarded decision and constrained extension. -/
+theorem extendSet_exists_iff (graph : DAG n) (guarded : graph.Guarded) (b : ℕ) (target : Channel n) (drive : Bool) (T F : Finset (Channel n)) : (∃ K, graph.extendSet b target drive T F = some K) ↔ drive = true ∧ ∃ root ∈ graph.roots, ∃ K, Admissible b target K ∧ ExtendsFixed T F K ∧ graph.eval (assignmentOfSet K) root ≠ graph.eval (assignmentOfSet {target}) root := by sorry
+end DAG
+end Controller.Decoder
+namespace Controller.CNF
+inductive Gate (α : Type*) where
+  | and (inputs : List (Literal α)) | or (inputs : List (Literal α)) | xor (left right : Literal α) | alias (input : Literal α) | not (input : Literal α) | constant (value : Bool)
+  deriving DecidableEq, Repr
+namespace Gate
+def clauses (out : Literal α) : Gate α → List (Clause α) | .and ls => ls.map (fun l => [negate out, l]) ++ [out :: ls.map negate] | .or ls => ls.map (fun l => [out, negate l]) ++ [negate out :: ls] | .xor l r => [[l, r, negate out], [negate l, negate r, negate out], [l, negate r, out], [negate l, r, out]] | .alias l => [[negate out, l], [out, negate l]] | .not l => [[out, l], [negate out, negate l]] | .constant b => [[if b then out else negate out]]
+def relabel (r : α → β) : Gate α → Gate β | .and ls => .and (ls.map (fun l => (r l.1, l.2))) | .or ls => .or (ls.map (fun l => (r l.1, l.2))) | .xor l k => .xor (r l.1, l.2) (r k.1, k.2) | .alias l => .alias (r l.1, l.2) | .not l => .not (r l.1, l.2) | .constant b => .constant b
+end Gate
+end Controller.CNF
+namespace Controller.CNF
+inductive AcyclicCircuit (r : Nat) : Nat → Type where
+  | roots : AcyclicCircuit r r | snoc {v : Nat} (previous : AcyclicCircuit r v) (gate : Gate (Fin v)) (phase : Bool) : AcyclicCircuit r (v + 1)
+end Controller.CNF
+namespace Controller.Cost.NativeCircuitSize
+open Controller.CNF
+def literalCount (formula : Formula α) : Nat := (formula.clauses.toList.map List.length).sum
+end Controller.Cost.NativeCircuitSize
+namespace Controller.Native
+inductive Side where
+  | healthy | faulty
+  deriving DecidableEq, Repr
+inductive PrefixLayout where
+  | raw | shared
+  deriving DecidableEq, Repr
+def PrefixLayout.activeCount : PrefixLayout → ℕ → ℕ | .raw, _ => 0 | .shared, buses => buses
+inductive PrimaryRole (n b : ℕ) where
+  | enable (channel : Fin n) | request (bus : Fin b) (channel : Fin n) | wire
+  deriving DecidableEq, Repr
+inductive Role (layout : PrefixLayout) (n b m q : ℕ) where
+  | driver | remaining | firstProduct (side : Side) | term (side : Side) (bus : Fin b) (channel : Fin n) | absent (side : Side) (bus : Fin b) (channel : Fin n) | flag (side : Side) (bus : Fin b) | mask (side : Side) (bus : Fin b) (channel : Fin n) | active (side : Side) (bus : Fin (layout.activeCount b)) (channel : Fin n) | qualifierGuard (side : Side) (bus : Fin b) (channel : Fin n) | qualifier (side : Side) (channel : Fin n) | decoder (side : Side) (node : Fin m) | difference (output : Fin q) | detected
+  deriving DecidableEq, Repr
+structure Parameters where
+  (channels : ℕ) (buses : ℕ) (positiveBuses : 0 < buses) (bridge : Physical.Bridge channels) (decoder : Decoder.DAG channels) (layout : PrefixLayout) (drive : Bool)
+abbrev Internal (parameters : Parameters) := Role parameters.layout parameters.channels parameters.buses parameters.decoder.nodeCount parameters.decoder.roots.length
+inductive Variable (parameters : Parameters) where
+  | primary (role : PrimaryRole parameters.channels parameters.buses) | internal (role : Internal parameters)
+  deriving DecidableEq, Repr
+namespace Parameters
+def firstBus (parameters : Parameters) : Fin parameters.buses := ⟨0, parameters.positiveBuses⟩
+def observations (parameters : Parameters) : Fin parameters.decoder.roots.length → Assignment parameters.channels → Bool := fun output assignment => parameters.decoder.eval assignment (parameters.decoder.roots.get output)
+end Parameters
+end Controller.Native
+namespace Controller.Native.Bounded
+inductive Junction where
+  | conjunction | disjunction
+  deriving DecidableEq, Repr
+def Junction.gate (junction : Junction) (inputs : List (CNF.Literal α)) : CNF.Gate α := match junction with | .conjunction => .and inputs | .disjunction => .or inputs
+structure Producer (α : Type*) where
+  (output : CNF.Literal α) (gate : CNF.Gate α)
+  deriving DecidableEq, Repr
+def Producer.rows (producer : Producer α) : List (CNF.Clause α) := producer.gate.clauses producer.output
+end Controller.Native.Bounded
+namespace Controller.Native.InterfaceAlias
+inductive Root (n b : ℕ) where
+  | enable (channel : Fin n) | request (bus : Fin b) (channel : Fin n)
+  deriving DecidableEq, Repr
+end Controller.Native.InterfaceAlias
+namespace Controller.Native.SourceObservation
+def oldOutputRoles (parameters : Parameters) (side : Side) : List (Internal parameters) := (List.finRange parameters.buses).map (.flag side) ++ (List.finRange parameters.channels).map (.qualifier side)
+end Controller.Native.SourceObservation
+namespace Controller.Native.SourceInitialIDs
+def rootCoordinates : InterfaceAlias.Root n b ≃ (Fin n ⊕ (Fin n × Fin b)) where
+  toFun
+    | .enable channel => .inl channel
+    | .request bus channel => .inr (channel, bus)
+  invFun
+    | .inl channel => .enable channel
+    | .inr pair => .request pair.2 pair.1
+  left_inv root := by cases root <;> rfl
+  right_inv coordinate := by cases coordinate <;> rfl
+def rootIndex : InterfaceAlias.Root n b ≃ Fin (n + n * b) := rootCoordinates.trans ((Equiv.sumCongr (Equiv.refl (Fin n)) finProdFinEquiv).trans finSumFinEquiv)
+def rootID (root : InterfaceAlias.Root n b) : ℕ := (rootIndex root).val + 1
+def rootCount (parameters : Parameters) : ℕ := parameters.channels + parameters.channels * parameters.buses
+end Controller.Native.SourceInitialIDs
+namespace Controller.Native.SourceSerialFold
+structure Layer where
+  (handles : List (CNF.Literal ℕ)) (producers : List (Bounded.Producer ℕ)) (nextID : ℕ)
+def pairLayer (junction : Bounded.Junction) (lastID : ℕ) : List (CNF.Literal ℕ) → Layer
+  | [] => ⟨[], [], lastID⟩
+  | [input] => ⟨[input], [], lastID⟩
+  | left :: right :: tail =>
+      let rest := pairLayer junction (lastID + 1) tail
+      ⟨(lastID + 1, true) :: rest.handles, ⟨(lastID + 1, true), junction.gate [left, right]⟩ :: rest.producers, rest.nextID⟩
+theorem pairLayer_length (junction : Bounded.Junction) (lastID : ℕ) (inputs : List (CNF.Literal ℕ)) : (pairLayer junction lastID inputs).handles.length = (inputs.length + 1) / 2 := by
+  induction inputs using List.twoStepInduction generalizing lastID with
+  | nil => simp [pairLayer]
+  | singleton input => simp [pairLayer]
+  | cons_cons left right tail inductionHypothesis _ =>
+      simp only [pairLayer, List.length_cons, inductionHypothesis]
+      omega
+structure Result where
+  (output : CNF.Literal ℕ) (producers : List (Bounded.Producer ℕ)) (nextID : ℕ)
+def allocate (junction : Bounded.Junction) (lastID : ℕ) (inputs : List (CNF.Literal ℕ)) : Result :=
+  match inputs with
+  | [] => ⟨(lastID + 1, true), [⟨(lastID + 1, true), junction.gate []⟩], lastID + 1⟩
+  | [input] => ⟨input, [], lastID⟩
+  | left :: right :: tail =>
+      let layer := pairLayer junction lastID (left :: right :: tail)
+      let rest := allocate junction layer.nextID layer.handles
+      ⟨rest.output, layer.producers ++ rest.producers, rest.nextID⟩
+termination_by inputs.length
+decreasing_by
+  rw [pairLayer_length]
+  simp_all only [List.length_cons]
+  omega
+def boundedIndex (positive : 0 < lastID) (source : ℕ) : Fin lastID := if valid : 0 < source ∧ source ≤ lastID then ⟨source - 1, by omega⟩ else ⟨0, positive⟩
+def boundedGate (positive : 0 < lastID) (gate : CNF.Gate ℕ) : CNF.Gate (Fin lastID) := gate.relabel (boundedIndex positive)
+structure State (roots : ℕ) where
+  (count : ℕ) (positive : 0 < count) (circuit : CNF.AcyclicCircuit roots count)
+def State.step (state : State roots) (producer : Bounded.Producer ℕ) : State roots :=
+  ⟨state.count + 1, by have := state.positive; omega, state.circuit.snoc (boundedGate state.positive producer.gate) true⟩
+def State.execute (state : State roots) (producers : List (Bounded.Producer ℕ)) : State roots := producers.foldl State.step state
+end Controller.Native.SourceSerialFold
+namespace Controller.Native.SourceController
+inductive Owner (parameters : Parameters) where
+  | native (slot : Controller.Native.Variable parameters) | fold (slot : Controller.Native.Variable parameters) (index : ℕ) | negatedFlag (side : Side) (bus : Fin parameters.buses) | oldDifference (index : Fin (parameters.buses + parameters.channels)) | oldDetected (index : ℕ) | guard (side : Side) (node : Fin parameters.decoder.nodeCount) (index : ℕ)
+  deriving DecidableEq, Repr
+structure Entry (parameters : Parameters) where
+  (owner : Owner parameters) (producer : Bounded.Producer ℕ)
+  deriving DecidableEq, Repr
+structure Cursor (parameters : Parameters) where
+  (entries : List (Entry parameters)) (slots : Controller.Native.Variable parameters → CNF.Literal ℕ) (assigned : List (Controller.Native.Variable parameters)) (negated : Side → Fin parameters.buses → CNF.Literal ℕ) (oldDifferences : Fin (parameters.buses + parameters.channels) → CNF.Literal ℕ) (oldDetected : CNF.Literal ℕ)
+def Cursor.lastID (cursor : Cursor parameters) : ℕ := SourceInitialIDs.rootCount parameters + cursor.entries.length
+def Cursor.assign (cursor : Cursor parameters) (slot : Controller.Native.Variable parameters) (handle : CNF.Literal ℕ) : Cursor parameters := { cursor with slots := Function.update cursor.slots slot handle, assigned := cursor.assigned ++ [slot] }
+def Cursor.emit (cursor : Cursor parameters) (owner : Owner parameters) (gate : CNF.Gate ℕ) : CNF.Literal ℕ × Cursor parameters :=
+  let output := (cursor.lastID + 1, true)
+  (output, { cursor with entries := cursor.entries ++ [⟨owner, ⟨output, gate⟩⟩] })
+def Cursor.emitNative (cursor : Cursor parameters) (slot : Controller.Native.Variable parameters) (gate : CNF.Gate ℕ) : Cursor parameters :=
+  let emitted := cursor.emit (.native slot) gate
+  emitted.2.assign slot emitted.1
+def Cursor.foldNative (cursor : Cursor parameters) (slot : Controller.Native.Variable parameters) (junction : Bounded.Junction) (inputs : List (CNF.Literal ℕ)) : Cursor parameters :=
+  let allocated := SourceSerialFold.allocate junction cursor.lastID inputs
+  let entries := allocated.producers.zipIdx.map fun pair => Entry.mk (.fold slot pair.2) pair.1
+  ({ cursor with entries := cursor.entries ++ entries }).assign slot allocated.output
+def initial (parameters : Parameters) : Cursor parameters where
+  entries := []
+  slots
+    | .primary (.enable channel) => (SourceInitialIDs.rootID (b := parameters.buses) (.enable channel), true)
+    | .primary (.request bus channel) => (SourceInitialIDs.rootID (.request bus channel), true)
+    | _ => (0, true)
+  assigned :=
+    (List.finRange parameters.channels).map (fun channel => .primary (.enable channel)) ++
+      (List.finRange parameters.channels).flatMap fun channel => (List.finRange parameters.buses).map fun bus => .primary (.request bus channel)
+  negated := fun _ _ => (0, true); oldDifferences := fun _ => (0, true); oldDetected := (0, true)
+def firstArrays (parameters : Parameters) : Cursor parameters :=
+  let terms := (List.finRange parameters.channels).foldl (fun cursor channel =>
+    let healthy := Controller.Native.Variable.internal (.term .healthy parameters.firstBus channel)
+    let faulty := Controller.Native.Variable.internal (.term .faulty parameters.firstBus channel)
+    let emitted := cursor.emitNative healthy
+      (.and [cursor.slots (.primary (.enable channel)), cursor.slots (.primary (.request parameters.firstBus channel))])
+    emitted.assign faulty (emitted.slots healthy)) (initial parameters)
+  (List.finRange parameters.channels).foldl (fun cursor channel =>
+    let healthy := Controller.Native.Variable.internal (.absent .healthy parameters.firstBus channel)
+    let faulty := Controller.Native.Variable.internal (.absent .faulty parameters.firstBus channel)
+    let emitted := cursor.emitNative healthy
+      (.not (cursor.slots (.internal (.term .healthy parameters.firstBus channel))))
+    emitted.assign faulty (emitted.slots healthy)) terms
+def interface (parameters : Parameters) : Cursor parameters :=
+  let first := firstArrays parameters
+  let driver := first.foldNative (.internal .driver) .conjunction
+    (parameters.bridge.drivers.sort.map fun channel => first.slots (.internal (.absent .healthy parameters.firstBus channel)))
+  let remaining := driver.foldNative (.internal .remaining) .conjunction
+    (parameters.bridge.remaining.sort.map fun channel => driver.slots (.internal (.absent .healthy parameters.firstBus channel)))
+  let wire := remaining.emitNative (.primary .wire) (.and [remaining.slots (.internal .driver)])
+  let healthyProduct := wire.emitNative (.internal (.firstProduct .healthy))
+    (.and [wire.slots (.internal (.absent .healthy parameters.firstBus parameters.bridge.target)), wire.slots (.internal .driver), wire.slots (.internal .remaining)])
+  let healthyFlag := healthyProduct.emitNative (.internal (.flag .healthy parameters.firstBus))
+    (.not (healthyProduct.slots (.internal (.firstProduct .healthy))))
+  let faultyProduct := healthyFlag.emitNative (.internal (.firstProduct .faulty))
+    (.and [healthyFlag.slots (.primary .wire), healthyFlag.slots (.internal .driver), healthyFlag.slots (.internal .remaining)])
+  faultyProduct.emitNative (.internal (.flag .faulty parameters.firstBus))
+    (.not (faultyProduct.slots (.internal (.firstProduct .faulty))))
+def initialMasks (parameters : Parameters) (side : Side) (cursor : Cursor parameters) : Cursor parameters := (List.finRange parameters.channels).foldl (fun cursor channel => cursor.emitNative (.internal (.mask side parameters.firstBus channel)) (.xor (cursor.slots (.internal (.flag side parameters.firstBus))) (cursor.slots (.internal (.absent side parameters.firstBus channel))))) cursor
+def laterBus (parameters : Parameters) (side : Side) (bus : Fin parameters.buses) (cursor : Cursor parameters) : Cursor parameters :=
+  let terms := (List.finRange parameters.channels).foldl (fun cursor channel =>
+    cursor.foldNative (.internal (.term side bus channel)) .conjunction
+      ([cursor.slots (.primary (.enable channel)), cursor.slots (.primary (.request bus channel))] ++
+        ((List.finRange parameters.buses).filter (fun earlier => earlier < bus)).map fun earlier => cursor.slots (.internal (.mask side earlier channel)))) cursor
+  let flag := terms.foldNative (.internal (.flag side bus)) .disjunction
+    ((List.finRange parameters.channels).map fun channel => terms.slots (.internal (.term side bus channel)))
+  (List.finRange parameters.channels).foldl (fun cursor channel =>
+    let absent := cursor.emitNative (.internal (.absent side bus channel))
+      (.not (cursor.slots (.internal (.term side bus channel))))
+    absent.emitNative (.internal (.mask side bus channel))
+      (.xor (absent.slots (.internal (.flag side bus))) (absent.slots (.internal (.absent side bus channel))))) flag
+def negateFlags (parameters : Parameters) (side : Side) (cursor : Cursor parameters) : Cursor parameters :=
+  (List.finRange parameters.buses).foldl (fun cursor bus =>
+    let emitted := cursor.emit (.negatedFlag side bus) (.not (cursor.slots (.internal (.flag side bus))))
+    { emitted.2 with negated := (Function.update emitted.2.negated side
+      (Function.update (emitted.2.negated side) bus emitted.1)) }) cursor
+def eligible (parameters : Parameters) (side : Side) (channel : Fin parameters.channels) (cursor : Cursor parameters) : Cursor parameters :=
+  let guarded := (List.finRange parameters.buses).foldl (fun cursor bus =>
+    cursor.emitNative (.internal (.qualifierGuard side bus channel))
+      (.or [cursor.negated side bus, cursor.slots (.primary (.request bus channel))])) cursor
+  guarded.foldNative (.internal (.qualifier side channel)) .conjunction
+    (guarded.slots (.primary (.enable channel)) ::
+      (List.finRange parameters.buses).map fun bus => guarded.slots (.internal (.qualifierGuard side bus channel)))
+def tail (parameters : Parameters) (side : Side) (cursor : Cursor parameters) : Cursor parameters :=
+  let masks := initialMasks parameters side cursor
+  let stages := ((List.finRange parameters.buses).filter fun bus => bus.val != 0).foldl
+    (fun cursor bus => laterBus parameters side bus cursor) masks
+  let negated := negateFlags parameters side stages
+  (List.finRange parameters.channels).foldl (fun cursor channel => eligible parameters side channel cursor) negated
+def controller (parameters : Parameters) : Cursor parameters := tail parameters .faulty (tail parameters .healthy (interface parameters))
+def originalObservations (parameters : Parameters) (cursor : Cursor parameters) : Cursor parameters :=
+  let paired := (List.finRange (parameters.buses + parameters.channels)).foldl (fun cursor index =>
+    let good := (SourceObservation.oldOutputRoles parameters .healthy)[index.val]?.getD .driver
+    let bad := (SourceObservation.oldOutputRoles parameters .faulty)[index.val]?.getD .driver
+    let emitted := cursor.emit (.oldDifference index)
+      (.xor (cursor.slots (.internal good)) (cursor.slots (.internal bad)))
+    { emitted.2 with oldDifferences := Function.update emitted.2.oldDifferences index emitted.1 }) cursor
+  let allocated := SourceSerialFold.allocate .disjunction paired.lastID
+    ((List.finRange (parameters.buses + parameters.channels)).map paired.oldDifferences)
+  { paired with entries := paired.entries ++ (allocated.producers.zipIdx.map
+      (fun pair => ⟨.oldDetected pair.2, pair.1⟩)), oldDetected := allocated.output }
+def guardChain (parameters : Parameters) (side : Side) (node : Fin parameters.decoder.nodeCount) (child : CNF.Literal ℕ) (labels : List (Fin parameters.channels)) (cursor : Cursor parameters) : CNF.Literal ℕ × Cursor parameters := labels.zipIdx.foldl (fun state pair => state.2.emit (.guard side node pair.2) (.and [state.1, CNF.negate (state.2.slots (.internal (.qualifier side pair.1)))])) (child, cursor)
+def decoderNode (parameters : Parameters) (side : Side) (node : Fin parameters.decoder.nodeCount) (cursor : Cursor parameters) : Cursor parameters :=
+  let slot := Controller.Native.Variable.internal (.decoder side node)
+  match parameters.decoder.node node with
+  | .zero => cursor.emitNative slot (.or [])
+  | .input channel => cursor.assign slot (cursor.slots (.internal (.qualifier side channel)))
+  | .disj children => cursor.foldNative slot .disjunction
+      (children.map fun child => cursor.slots (.internal (.decoder side (parameters.decoder.childIndex node child))))
+  | .guard child labels =>
+      let guarded := guardChain parameters side node
+        (cursor.slots (.internal (.decoder side (parameters.decoder.childIndex node child)))) labels cursor
+      guarded.2.assign slot guarded.1
+  | .liveAnd left right => cursor.emitNative slot (.and
+      [cursor.slots (.internal (.decoder side (parameters.decoder.childIndex node left))), cursor.slots (.internal (.decoder side (parameters.decoder.childIndex node right)))])
+def attachDecoder (parameters : Parameters) (side : Side) (cursor : Cursor parameters) : Cursor parameters := (List.finRange parameters.decoder.nodeCount).foldl (fun cursor node => decoderNode parameters side node cursor) cursor
+def newObservations (parameters : Parameters) (cursor : Cursor parameters) : Cursor parameters :=
+  let differences := (List.finRange parameters.decoder.roots.length).foldl (fun cursor output =>
+    cursor.emitNative (.internal (.difference output)) (.xor
+      (cursor.slots (.internal (.decoder .healthy (parameters.decoder.roots.get output))))
+      (cursor.slots (.internal (.decoder .faulty (parameters.decoder.roots.get output)))))) cursor
+  differences.foldNative (.internal .detected) .disjunction
+    ((List.finRange parameters.decoder.roots.length).map fun output => differences.slots (.internal (.difference output)))
+def compile (parameters : Parameters) : Cursor parameters := newObservations parameters (attachDecoder parameters .faulty (attachDecoder parameters .healthy (originalObservations parameters (controller parameters))))
+def sourceRoleMap (parameters : Parameters) : Controller.Native.Variable parameters → CNF.Literal ℕ := (compile parameters).slots
+def equationFormula (parameters : Parameters) : CNF.Formula ℕ := CNF.ofClauses ((compile parameters).entries.flatMap fun entry => entry.producer.rows)
+def assertions (parameters : Parameters) : List (CNF.Literal ℕ) :=
+  let slots := sourceRoleMap parameters
+  [((slots (.internal (.absent .healthy parameters.firstBus parameters.bridge.target))).1, !parameters.drive),
+    ((slots (.internal .driver)).1, parameters.drive),
+    ((slots (.primary .wire)).1, parameters.drive), slots (.internal .detected)]
+def formula (parameters : Parameters) : CNF.Formula ℕ := equationFormula parameters ++ CNF.ofClauses ((assertions parameters).map fun literal => [literal])
+end Controller.Native.SourceController
+namespace Controller.Native.SourceController
+def Cursor.toState (cursor : Cursor parameters) : SourceSerialFold.State (SourceInitialIDs.rootCount parameters) :=
+  (SourceSerialFold.State.mk (SourceInitialIDs.rootCount parameters)
+    (by have positive := parameters.bridge.target.isLt; unfold SourceInitialIDs.rootCount; omega)
+    .roots).execute (cursor.entries.map Entry.producer)
+end Controller.Native.SourceController
+namespace Controller.Certificate.ModelCheck
+open Controller
+def check (formula : CNF.Formula α) (assignment : α → Bool) : Bool := Controller.CNF.OrderedFormula.eval assignment formula
+end Controller.Certificate.ModelCheck
+namespace Controller.Cost.NativeSourceExecution
+open Controller.CNF Controller.Native Controller.Native.SourceController
+def selectedSize (parameters : Parameters) : NativeSize where
+  variableCount := (compile parameters).toState.count; clauses := (formula parameters).clauses.size; literals := NativeCircuitSize.literalCount (formula parameters)
+end Controller.Cost.NativeSourceExecution
+namespace Controller.Cost.NativeRealizedChecked
+open Controller.Cost.NativeSourceExecution
+open Controller.Native Controller.Native.SourceController
+def decodeOutput (output : List (Word width)) (count source : Nat) : Bool := if 0 < source ∧ source ≤ count then ((output[count - source]?).getD (word width 0)).val == 1 else false
+end Controller.Cost.NativeRealizedChecked
+namespace Controller.Cost.SharedRetainedCandidates
+open Controller.Decoder Controller.Decoder.DAG
+open Controller.Cost.ForestIndexedOperands Controller.Cost.UniformDAGSource
+def masks (width : Nat) (baseline : Assignment n) (flags : List Bool) : List (Word width) := (List.finRange n).map (fun channel => boolWord width (baseline channel)) ++ flags.map (boolWord width)
+end Controller.Cost.SharedRetainedCandidates
+namespace Controller.Cost.SharedMachineCapacity
+open Controller.Native Controller.Native.SourceController
+open Controller.Cost.NativeSourceExecution
+open Controller.Decoder
+def wordWidth (retained graphSize nativeSize : Nat) : Nat := Nat.log2 (retained + graphSize + nativeSize + 1) + 18
+end Controller.Cost.SharedMachineCapacity
+namespace Controller.Cost.SharedDetectorLoop
+open Controller.Native Controller.Native.SourceController Controller.Decoder
+open Controller.Cost.NativeSourceExecution
+abbrev Width (parameters : Parameters) (graph : DAG parameters.channels) (retained : Nat) := SharedMachineCapacity.wordWidth retained graph.countedSize (selectedSize parameters).total
+end Controller.Cost.SharedDetectorLoop
+namespace Controller.Cost.SharedDetectorCold
+open Controller.Decoder Controller.Decoder.DAG
+open Controller.Cost.ForestIndexedOperands Controller.Cost.UniformDAGSource
+open Controller.Native Controller.Native.SourceController Controller.Cost.NativeSourceExecution
+def inputWords (width : Nat) (rows : List Row) (roots : List Nat) (values : Assignment n) : List (Word width) := (inputPacket n 0 rows roots).map (word width) ++ List.ofFn (fun channel => boolWord width (values channel))
+section Code
+variable (parameters : Parameters) (graph : DAG parameters.channels) (T F : Finset (Fin parameters.channels))
+def retained : Nat := 480 * (graph.countedSize + 1) + 77 * (selectedSize parameters).total + 1300
+noncomputable def program : (parameters : Controller.Native.Parameters) → (graph : Controller.Decoder.DAG parameters.channels) → Finset.{0} (Fin parameters.channels) → Finset.{0} (Fin parameters.channels) → List.{0} Controller.Cost.ForestIndexedOperands.Row → List.{0} ℕ → Controller.Cost.Program (Controller.Cost.SharedDetectorLoop.Width parameters graph (Controller.Cost.SharedDetectorCold.retained parameters graph)) 8 := by sorry
+end Code
+/-- execution: Guarded decision and constrained extension. -/
+theorem execution (parameters : Parameters) (raw : parameters.layout = .raw) (drive : parameters.drive = true) (graph : DAG parameters.channels) (guarded : graph.Guarded) (T F : Finset (Fin parameters.channels)) (consistent : FixedConsistent (extensionBase parameters.buses parameters.bridge.target T) F) (rows : List Row) (roots : List Nat) (matched : RowsMatch graph rows) (heads : HeadsMatch graph rows matched) (rootMatches : RootsMatch graph roots) (observations : Fin graph.roots.length → Fin parameters.decoder.roots.length) (observationEq : ∀ position K, parameters.observations (observations position) (assignmentOfSet K) = graph.eval (assignmentOfSet K) graph.roots[position.val]) (suffix : List (Word (SharedDetectorLoop.Width parameters graph (retained parameters graph)))) (state : State (SharedDetectorLoop.Width parameters graph (retained parameters graph)) 8) (position : state.pc = word _ 0) (running : state.halted = false) (empty : state.heap = #[]) (input : state.stack = inputWords (SharedDetectorLoop.Width parameters graph (retained parameters graph)) rows roots (assignmentOfSet {parameters.bridge.target}) ++ word _ parameters.bridge.target.val :: (SharedRetainedCandidates.masks (SharedDetectorLoop.Width parameters graph (retained parameters graph)) (assignmentOfSet (extensionBase parameters.buses parameters.bridge.target T)) ((List.finRange parameters.channels).map (assignmentOfSet F)) ++ suffix)) : ∃ answer : Bool, ∃ final ticks peak, Execution (program parameters graph T F rows roots) state final ticks peak ∧ final.halted = true ∧ final.reg 4 = word _ (if answer then 1 else 0) ∧ ticks ≤ (parameters.channels + graph.roots.length + 1) * (5100 * (graph.countedSize + 1)) + (if answer then 55 * (selectedSize parameters).total else 0) ∧ peak ≤ state.liveWords + 210 * (graph.countedSize + 1) + 3 * (selectedSize parameters).total ∧ (answer = true ↔ ∃ output : Fin graph.roots.length, ∃ K, Admissible parameters.buses parameters.bridge.target K ∧ ExtendsFixed T F K ∧ graph.eval (assignmentOfSet {parameters.bridge.target}) graph.roots[output.val] ≠ graph.eval (assignmentOfSet K) graph.roots[output.val]) ∧ (answer = true → Certificate.ModelCheck.check (formula parameters) (NativeRealizedChecked.decodeOutput final.output (compile parameters).toState.count) = true) := by sorry
+end Controller.Cost.SharedDetectorCold

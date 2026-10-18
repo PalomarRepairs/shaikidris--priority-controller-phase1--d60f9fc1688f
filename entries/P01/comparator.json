@@ -1,0 +1,17 @@
+{
+  "challenge_module": "Phase1.P01.Challenge",
+  "solution_module": "Phase1.P01.Solution",
+  "theorem_names": [
+    "Controller.Physical.separated_drive_one_set_pair_image_iff",
+    "Controller.Physical.not_bridgeDetectable_drive_zero",
+    "Controller.Physical.bridge_detectable_iff_exists_output",
+    "Controller.Physical.proper_projection_full",
+    "Controller.Physical.valid_local_relations_accept_zero",
+    "Controller.Physical.stuck_detectable_iff"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ]
+}

@@ -1,0 +1,117 @@
+version: v0.4
+project:
+  name: Canonical streaming enumeration of eligible detections
+  description: Canonical eligible-set enumeration with actual prefix traversal, exact returned
+    sets, detecting emitted witnesses, iterator delay and native program resource bounds.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.DM
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; 5.5. The informal manuscript supplies the model and proof arguments according
+    to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Canonical eligible-set enumeration with actual prefix traversal, exact returned sets,
+    detecting emitted witnesses, iterator delay and native program resource bounds. The selected
+    bounds concern the displayed native program and its declared word width and storage measures.
+    Canonical results are eligible qualifier sets and their formal realizations. The entry
+    does not count all primary-input assignments or assert an unproved encoded image constructor.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The selected bounds concern the displayed native program and its declared word
+    width and storage measures. Canonical results are eligible qualifier sets and their formal
+    realizations. The entry does not count all primary-input assignments or assert an unproved
+    encoded image constructor.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.execution
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: The actual native enumeration program halts and emits the specified representation
+      of its complete result stream. The total bound includes up to 2^n prefix candidates
+      plus a separate emitBudget per result; working peak is at most 258*(countedSize + 1).
+      Immutable program storage and the retained external output stream are separate measures.
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.results_exact
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: The result sequence is duplicate-free and ordered by the explicit Before relation.
+      Membership is exactly the Detecting predicate for the supplied guarded DAG, bus count,
+      target and drive. Objects enumerated are eligible channel sets.
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.canonical_result_detects
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: Each enumerated eligible set gives a detecting drive-one canonical primary input
+      under realizeBridge. This is a witness-correctness theorem and does not count every
+      primary assignment or native-CNF model.
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.iterator_delay
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: From the displayed seek Runtime invariant, the actual program reaches the next emit
+      or exhaustion endpoint within 100000*n*(n+q)*countedSize ticks and the stated working
+      peak. Its external output is unchanged during this iterator transition; emission has
+      its own charge.
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.delay_bound
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: The symbolic iterator delay function is bounded by 100000*n*(n+q)*countedSize. This
+      arithmetic bound accompanies the separate actual iterator execution theorem.
+  - source: '5.5'
+    lean: Controller.Cost.Enumeration.program_words_bound
+    module: Controller.Cost.Enumeration
+    status: proved
+    note: The immutable native program has the explicit linear word bound in channel count,
+      coordinate count and countedSize, assuming RootsMatch. This bounds code words separately
+      from mutable working storage and streamed output.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

@@ -1,0 +1,150 @@
+version: v0.4
+project:
+  name: Bounded live conjunction and proper-basis detection
+  description: Support and expansion identities for bounded live conjunction, native bounded-conjunction
+    detection with explicit XP and special-case time bounds, and proper-basis execution.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.CC
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; 7.2, 7.3, 7.4, 7.5 (proper-basis component). The informal manuscript
+    supplies the model and proof arguments according to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Support and expansion identities for bounded live conjunction, native bounded-conjunction
+    detection with explicit XP and special-case time bounds, and proper-basis execution. The
+    decoder and its live-conjunction or proper-basis evidence are supplied. Runtime is measured
+    in the explicit native execution model. The proper-basis algorithms do not establish the
+    full-basis hardness classification or conventional encoded-language membership without
+    the required construction bridge.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The decoder and its live-conjunction or proper-basis evidence are supplied.
+    Runtime is measured in the explicit native execution model. The proper-basis algorithms
+    do not establish the full-basis hardness classification or conventional encoded-language
+    membership without the required construction bridge.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: '7.2'
+    lean: Controller.Decoder.DAG.exists_small_true_support
+    module: Controller.Extensions.Support
+    status: proved
+    note: If a root is true on K and liveAndCount is at most k, a nonempty subset of K of
+      size at most k+1 still makes it true. Sharing is counted by distinct live-AND nodes.
+  - source: '7.2'
+    lean: Controller.Decoder.DAG.exists_small_target_support
+    module: Controller.Extensions.Support
+    status: proved
+    note: If K contains the target, a true subset containing it has size at most k+2 and is
+      admissible for every bus count. This is the forced-target support component of 7.2.
+  - source: '7.3'
+    lean: Controller.Decoder.DAG.expansion_identity
+    module: Controller.Extensions.Expansion
+    status: proved
+    note: On a child-closed node set, truth at any included node is equivalent to truth under
+      every consistent selector expansion. A single selector choice is shared across all occurrences
+      of a live-AND node.
+  - source: '7.3'
+    lean: Controller.Decoder.DAG.global_selector_count
+    module: Controller.Extensions.Expansion
+    status: proved
+    note: The number of global selectors is exactly 2^liveAndCount. This is an exact finite
+      counting statement.
+  - source: '7.3'
+    lean: Controller.Decoder.DAG.cone_expansion_identity
+    module: Controller.Extensions.Expansion
+    status: proved
+    note: The cone-restricted expansion identity holds at every root and assignment, with
+      one consistent selector on its cone.
+  - source: '7.4'
+    lean: Controller.Extensions.BoundedNativeComplete.execution
+    module: Controller.Extensions.BoundedNativeComplete
+    status: proved
+    note: For raw native layout and a supplied bound k on liveAndCount, the actual detector
+      halts with the exact displayed detection answer, native timeBound, working/code bounds
+      and a checked native model plus eligible witness on acceptance. The native execution
+      model and representation are explicit.
+  - source: '7.4'
+    lean: Controller.Extensions.BoundedNativeComplete.emitted_witness
+    module: Controller.Extensions.BoundedNativeComplete
+    status: proved
+    note: Under raw layout and drive one, any decoded output accepted by the native model
+      checker yields an admissible eligible set changing an observed root. This is checker-to-physical-witness
+      soundness; actual accepting execution is supplied separately.
+  - source: '7.4'
+    lean: Controller.Extensions.BoundedNativeComplete.xp_time
+    module: Controller.Extensions.BoundedNativeComplete
+    status: proved
+    note: The displayed native timeBound is at most 15000*((k+2)*(G+1)^(k+1)+(G+1)*2^k)*(G+1)+100*N.
+      This establishes an XP upper bound with the formal size measures; it is not the exact
+      sharper binomial expression stated in the manuscript.
+  - source: '7.4'
+    lean: Controller.Extensions.BoundedNativeComplete.one_and_time
+    module: Controller.Extensions.BoundedNativeComplete
+    status: proved
+    note: For k=1, the native timeBound is at most 360000*(n^2+q)*G+100*N. Combined with the
+      execution premise liveAndCount<=1, this gives the selected one-live-AND runtime bound.
+  - source: '7.4'
+    lean: Controller.Extensions.BoundedNativeComplete.healthy_one_time
+    module: Controller.Extensions.BoundedNativeComplete
+    status: proved
+    note: When every supplied root is healthy one, native timeBound is at most 15000*(2^k+1)*(G+1)^2+100*N.
+      This gives an FPT bound in k for that case; the selected inequality does not assert
+      the sharper q*2^k*G expression.
+  - source: 7.5 (proper-basis component)
+    lean: Controller.Extensions.ProperBasisComplete.execution
+    module: Controller.Extensions.ProperBasisComplete
+    status: proved
+    note: For a supplied proper gate basis and matching rows/heads/roots in raw layout, the
+      selected native detector halts, decides drive-one feasibility, has the displayed polynomial
+      tick/code/working bounds and emits a checked model on acceptance. This is the proper-basis
+      algorithmic component of 7.5; the full-basis hardness half and conventional encoded-language
+      membership are outside this selection.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

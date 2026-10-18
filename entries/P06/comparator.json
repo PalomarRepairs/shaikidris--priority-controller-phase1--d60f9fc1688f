@@ -1,0 +1,28 @@
+{
+  "challenge_module": "Phase1.P06.Challenge",
+  "solution_module": "Phase1.P06.Solution",
+  "theorem_names": [
+    "Controller.Cost.CriticalSets.cycle_complete",
+    "Controller.Cost.CriticalSets.cycle_unique",
+    "Controller.Boundaries.physical_test_list_lower_bound",
+    "Controller.Boundaries.criticalSets_card_one",
+    "Controller.Boundaries.criticalSets_card_many",
+    "Controller.Cost.CriticalSets.critical_complete",
+    "Controller.Boundaries.deterministic_one_bus",
+    "Controller.Boundaries.deterministic_many_buses",
+    "Controller.Boundaries.randomized_mixture_lower_bound",
+    "Controller.Graph.NativeWidth.primal_treewidth_lower",
+    "Controller.Graph.NativeWidth.incidence_treewidth_lower",
+    "Controller.Boundaries.Backdoors.native_backdoor_lower_bound",
+    "Controller.Boundaries.Backdoors.specification_backdoor_lower_bound",
+    "Controller.Graph.CoverCircuit.linear_width_obstruction"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.CriticalSets.forestProgram"
+  ]
+}

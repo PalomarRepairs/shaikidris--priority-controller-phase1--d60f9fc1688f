@@ -1,0 +1,121 @@
+version: v0.4
+project:
+  name: Guarded detection and constrained eligible-set extensions
+  description: Correctness and completeness of fault detection and extension over a supplied
+    guarded decoder DAG, together with an executed native cold-detector bound.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.DM
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; 5.1, 5.1;5.4, 5.4. The informal manuscript supplies the model and proof
+    arguments according to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Correctness and completeness of fault detection and extension over a supplied guarded
+    decoder DAG, together with an executed native cold-detector bound. The decoder is supplied
+    as structured finite data. Fixed signs constrain eligibility coordinates. The cold-detector
+    resource theorem uses its displayed native instruction model and encoded input layout;
+    it is not a conventional encoded-language membership theorem and does not discover a guarded
+    presentation of arbitrary CNF.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The decoder is supplied as structured finite data. Fixed signs constrain eligibility
+    coordinates. The cold-detector resource theorem uses its displayed native instruction
+    model and encoded input layout; it is not a conventional encoded-language membership theorem
+    and does not discover a guarded presentation of arbitrary CNF.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: '5.1'
+    lean: Controller.Public.guarded_bridge_detector_correct
+    module: Controller.Public.Detection
+    status: proved
+    note: For a supplied guarded DAG, detectInput returns none exactly when no physical bridge-interface
+      input and wire value distinguish an observed root. Every returned input satisfies the
+      drive interface with wire true and distinguishes a root. This is the semantic correctness
+      component of 5.1.
+  - source: '5.1'
+    lean: Controller.Public.guarded_bridge_detector_complete
+    module: Controller.Public.Detection
+    status: proved
+    note: For a supplied guarded DAG, existence of a returned input is equivalent to physical
+      bridge detectability. The theorem covers the drive parameter explicitly; runtime is
+      established separately.
+  - source: 5.1;5.4
+    lean: Controller.Cost.SharedDetectorCold.execution
+    module: Controller.Cost.SharedDetectorCold
+    status: proved
+    note: The charged cold native program requires raw layout, drive one, consistent fixed
+      sets, matching rows/heads/roots and the displayed observation correspondence and initial
+      packet. It halts with the exact constrained detection answer, at most 5100*(n+q+1)*(G+1)
+      ticks plus 55 times the displayed selected native size on acceptance, bounded live words
+      and a checked native model when it accepts. These representation and native instruction
+      premises remain explicit.
+  - source: '5.4'
+    lean: Controller.Decoder.DAG.extendSet_some
+    module: Controller.Decoder.Extend
+    status: proved
+    note: Every returned extension has drive one, is admissible, extends the fixed true/false
+      eligibility sets and changes a supplied root from its target-singleton value. Fixed
+      sets constrain eligibility coordinates.
+  - source: '5.4'
+    lean: Controller.Decoder.DAG.extendSet_none_iff
+    module: Controller.Decoder.Extend
+    status: proved
+    note: The extension routine returns none exactly when there is no admissible detecting
+      extension satisfying the fixed eligibility sets and drive-one condition. This is an
+      exact semantic failure criterion, including inconsistent constraints.
+  - source: '5.4'
+    lean: Controller.Decoder.DAG.extendSet_exists_iff
+    module: Controller.Decoder.Extend
+    status: proved
+    note: Existence of a returned extension is equivalent to existence of an admissible root-changing
+      extension of the fixed eligibility sets, together with drive one. It does not constrain
+      arbitrary enable/request bits.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

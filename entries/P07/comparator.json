@@ -1,0 +1,28 @@
+{
+  "challenge_module": "Phase1.P07.Challenge",
+  "solution_module": "Phase1.P07.Solution",
+  "theorem_names": [
+    "Controller.Decoder.DAG.exists_small_true_support",
+    "Controller.Decoder.DAG.exists_small_target_support",
+    "Controller.Decoder.DAG.expansion_identity",
+    "Controller.Decoder.DAG.global_selector_count",
+    "Controller.Decoder.DAG.cone_expansion_identity",
+    "Controller.Extensions.BoundedNativeComplete.execution",
+    "Controller.Extensions.BoundedNativeComplete.emitted_witness",
+    "Controller.Extensions.BoundedNativeComplete.xp_time",
+    "Controller.Extensions.BoundedNativeComplete.one_and_time",
+    "Controller.Extensions.BoundedNativeComplete.healthy_one_time",
+    "Controller.Extensions.ProperBasisComplete.execution"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.SharedDetectorCold.program",
+    "Controller.Extensions.BoundedNativeDetector.program",
+    "Controller.Extensions.MonotoneNativeDetector.program",
+    "Controller.Extensions.LiteralNativeDetector.program"
+  ]
+}

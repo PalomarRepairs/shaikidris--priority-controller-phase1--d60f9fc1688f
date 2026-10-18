@@ -1,0 +1,148 @@
+{
+  "P01": {
+    "purpose": "Exact physical image and observation criterion",
+    "comparator_config_path": "entries/P01/comparator.json",
+    "formalization_metadata_path": "formalization.yaml",
+    "theorem_names": [
+      "Controller.Physical.separated_drive_one_set_pair_image_iff",
+      "Controller.Physical.not_bridgeDetectable_drive_zero",
+      "Controller.Physical.bridge_detectable_iff_exists_output",
+      "Controller.Physical.proper_projection_full",
+      "Controller.Physical.valid_local_relations_accept_zero",
+      "Controller.Physical.stuck_detectable_iff"
+    ]
+  },
+  "P02": {
+    "purpose": "Guarded decision and constrained extension",
+    "comparator_config_path": "entries/P02/comparator.json",
+    "formalization_metadata_path": "entries/P02/formalization.yaml",
+    "theorem_names": [
+      "Controller.Public.guarded_bridge_detector_correct",
+      "Controller.Public.guarded_bridge_detector_complete",
+      "Controller.Cost.SharedDetectorCold.execution",
+      "Controller.Decoder.DAG.extendSet_some",
+      "Controller.Decoder.DAG.extendSet_none_iff",
+      "Controller.Decoder.DAG.extendSet_exists_iff"
+    ]
+  },
+  "P03": {
+    "purpose": "Canonical enumeration, termination and streaming delay",
+    "comparator_config_path": "entries/P03/comparator.json",
+    "formalization_metadata_path": "entries/P03/formalization.yaml",
+    "theorem_names": [
+      "Controller.Cost.Enumeration.execution",
+      "Controller.Cost.Enumeration.results_exact",
+      "Controller.Cost.Enumeration.canonical_result_detects",
+      "Controller.Cost.Enumeration.iterator_delay",
+      "Controller.Cost.Enumeration.delay_bound",
+      "Controller.Cost.Enumeration.program_words_bound"
+    ]
+  },
+  "P04": {
+    "purpose": "Formula-forest execution and maximum weight",
+    "comparator_config_path": "entries/P04/comparator.json",
+    "formalization_metadata_path": "entries/P04/formalization.yaml",
+    "theorem_names": [
+      "Controller.Cost.ForestOriginalSemantics.original_physical_execution",
+      "Controller.Optimization.Weights.forest_maximum_weight"
+    ]
+  },
+  "P05": {
+    "purpose": "Dual-Horn and graph-cover representations",
+    "comparator_config_path": "entries/P05/comparator.json",
+    "formalization_metadata_path": "entries/P05/formalization.yaml",
+    "theorem_names": [
+      "Controller.Reductions.DualHorn.model_bridge_detectable_iff",
+      "Controller.Reductions.DualHorn.decoder_size_linear",
+      "Controller.Reductions.DualHorn.decoder_formulaForest",
+      "Controller.Reductions.coverDAG_size_linear",
+      "Controller.Reductions.cover_detection_count",
+      "Controller.Reductions.cover_physical_detects_only_covers",
+      "Controller.Reductions.cover_realizer_detects_iff"
+    ]
+  },
+  "P06": {
+    "purpose": "Critical sets, query, width and backdoor obstructions",
+    "comparator_config_path": "entries/P06/comparator.json",
+    "formalization_metadata_path": "entries/P06/formalization.yaml",
+    "theorem_names": [
+      "Controller.Cost.CriticalSets.cycle_complete",
+      "Controller.Cost.CriticalSets.cycle_unique",
+      "Controller.Boundaries.physical_test_list_lower_bound",
+      "Controller.Boundaries.criticalSets_card_one",
+      "Controller.Boundaries.criticalSets_card_many",
+      "Controller.Cost.CriticalSets.critical_complete",
+      "Controller.Boundaries.deterministic_one_bus",
+      "Controller.Boundaries.deterministic_many_buses",
+      "Controller.Boundaries.randomized_mixture_lower_bound",
+      "Controller.Graph.NativeWidth.primal_treewidth_lower",
+      "Controller.Graph.NativeWidth.incidence_treewidth_lower",
+      "Controller.Boundaries.Backdoors.native_backdoor_lower_bound",
+      "Controller.Boundaries.Backdoors.specification_backdoor_lower_bound",
+      "Controller.Graph.CoverCircuit.linear_width_obstruction"
+    ]
+  },
+  "P07": {
+    "purpose": "Bounded live conjunction and proper-basis algorithms",
+    "comparator_config_path": "entries/P07/comparator.json",
+    "formalization_metadata_path": "entries/P07/formalization.yaml",
+    "theorem_names": [
+      "Controller.Decoder.DAG.exists_small_true_support",
+      "Controller.Decoder.DAG.exists_small_target_support",
+      "Controller.Decoder.DAG.expansion_identity",
+      "Controller.Decoder.DAG.global_selector_count",
+      "Controller.Decoder.DAG.cone_expansion_identity",
+      "Controller.Extensions.BoundedNativeComplete.execution",
+      "Controller.Extensions.BoundedNativeComplete.emitted_witness",
+      "Controller.Extensions.BoundedNativeComplete.xp_time",
+      "Controller.Extensions.BoundedNativeComplete.one_and_time",
+      "Controller.Extensions.BoundedNativeComplete.healthy_one_time",
+      "Controller.Extensions.ProperBasisComplete.execution"
+    ]
+  },
+  "P08": {
+    "purpose": "Observation projection, producer recovery and typed certificates",
+    "comparator_config_path": "entries/P08/comparator.json",
+    "formalization_metadata_path": "entries/P08/formalization.yaml",
+    "theorem_names": [
+      "Controller.Native.ObservationProjection.observation_projection_of_unit_conflict",
+      "Controller.Native.ObservationProjection.optional_declared_cnf_projection",
+      "Controller.Native.ObservationProjection.selected_declared_cnf_projection",
+      "Controller.Recognition.IntendedDAG.recovery_exact",
+      "Controller.Recognition.GuardedFamily.decodeChecked_sound",
+      "Controller.Recognition.GuardedFamily.decodeChecked_lifting",
+      "Controller.Certificate.Pipeline.runFamily_sat_iff",
+      "Controller.Certificate.Pipeline.runFamily_certified_unsat",
+      "Controller.Certificate.Pipeline.runFamily_sat_sound",
+      "Controller.Certificate.Pipeline.runFamily_unsat_sound"
+    ]
+  },
+  "P09": {
+    "purpose": "Ordinary resolution and observation wrappers",
+    "comparator_config_path": "entries/P09/comparator.json",
+    "formalization_metadata_path": "entries/P09/formalization.yaml",
+    "theorem_names": [
+      "Controller.Cost.NativeResolution.native_refutation_encoded_cubic",
+      "Controller.Cost.NativeResolution.compactNativeCompile_complete",
+      "Controller.Cost.NativeResolution.compactNativeCompile_checked",
+      "Controller.Cost.NativeResolution.canonical_derived_literal_storage",
+      "Controller.Cost.WrapperResolution.runOptional_complete_cubic",
+      "Controller.Cost.WrapperResolution.runSelected_complete_cubic",
+      "Controller.Cost.WrapperResolution.runOptional_checked",
+      "Controller.Cost.WrapperResolution.runSelected_checked"
+    ]
+  },
+  "P10": {
+    "purpose": "Resource-respecting encoded simulation and reduction composition",
+    "comparator_config_path": "entries/P10/comparator.json",
+    "formalization_metadata_path": "entries/P10/formalization.yaml",
+    "theorem_names": [
+      "Controller.Complexity.ImageCanonical.decoded_execution",
+      "Controller.Complexity.NativeCompilation.tm_polytime",
+      "Controller.Complexity.SpaceTapeBridge.composed",
+      "Controller.Complexity.SpaceTapeErasure.logspace",
+      "Controller.Complexity.ParameterReduction.compose",
+      "Controller.Complexity.ParameterTM.realization"
+    ]
+  }
+}

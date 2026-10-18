@@ -1,0 +1,167 @@
+version: v0.4
+project:
+  name: Critical sets, query bounds and width obstructions
+  description: Critical detecting-set systems, physical test-list and query lower bounds,
+    primal and incidence treewidth obstructions, and native or specification backdoor lower
+    bounds.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.CC
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; 6.1, 6.10, 6.11 (structural component), 6.12, 6.2, 6.3. The informal
+    manuscript supplies the model and proof arguments according to the recorded source-development
+    account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Critical detecting-set systems, physical test-list and query lower bounds, primal
+    and incidence treewidth obstructions, and native or specification backdoor lower bounds.
+    Query bounds use the displayed deterministic and randomized query models. Width and backdoor
+    theorems concern the specified native or specification encodings. The supplied expansion
+    and degree hypotheses remain assumptions of the structural circuit component; no infinite
+    expander construction or DNNF lower bound is included.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: Query bounds use the displayed deterministic and randomized query models. Width
+    and backdoor theorems concern the specified native or specification encodings. The supplied
+    expansion and degree hypotheses remain assumptions of the structural circuit component;
+    no infinite expander construction or DNNF lower bound is included.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: '6.1'
+    lean: Controller.Cost.CriticalSets.cycle_complete
+    module: Controller.Cost.CriticalSets
+    status: proved
+    note: The actual costed cycle-decoder recovery run returns all channels, halts with a
+      detecting physical descriptor, and includes source validation, array/program formation
+      and explicit linear tick/storage bounds under the matching representation premises.
+  - source: '6.1'
+    lean: Controller.Cost.CriticalSets.cycle_unique
+    module: Controller.Cost.CriticalSets
+    status: proved
+    note: Any admissible set whose canonical realization detects the cycle decoder is the
+      full channel universe. This is the uniqueness component of Example 6.1.
+  - source: '6.2'
+    lean: Controller.Boundaries.physical_test_list_lower_bound
+    module: Controller.Boundaries.CriticalSets
+    status: proved
+    note: Any fixed physical test list that detects every critical observation has at least
+      as many entries as critical eligible sets. It is a syntax-independent universal-test-list
+      lower bound, not a sequential-time lower bound for a decoder-reading algorithm.
+  - source: '6.2'
+    lean: Controller.Boundaries.criticalSets_card_one
+    module: Controller.Boundaries.CriticalSets
+    status: proved
+    note: For one bus, the critical-set family has exactly 2^(n-1)-1 members, with the target
+      an inhabited channel.
+  - source: '6.2'
+    lean: Controller.Boundaries.criticalSets_card_many
+    module: Controller.Boundaries.CriticalSets
+    status: proved
+    note: For at least two buses, the critical-set family has exactly 2^n-2 members.
+  - source: '6.2'
+    lean: Controller.Cost.CriticalSets.critical_complete
+    module: Controller.Cost.CriticalSets
+    status: proved
+    note: For every supplied critical set, the actual matched forest recovery program returns
+      that set and a detecting physical descriptor with the validation, formation and linear
+      native resource bounds in RecoveryRun.
+  - source: '6.3'
+    lean: Controller.Boundaries.deterministic_one_bus
+    module: Controller.Boundaries.OracleQueries
+    status: proved
+    note: Every finite adaptive query tree correct on the one-bus critical family and bottom
+      oracle has worst-case query budget at least 2^(n-1)-1.
+  - source: '6.3'
+    lean: Controller.Boundaries.deterministic_many_buses
+    module: Controller.Boundaries.OracleQueries
+    status: proved
+    note: For at least two buses, every finite adaptive query tree correct on the critical
+      family and bottom oracle has budget at least 2^n-2.
+  - source: '6.3'
+    lean: Controller.Boundaries.randomized_mixture_lower_bound
+    module: Controller.Boundaries.OracleQueries
+    status: proved
+    note: For a finite nonnegative normalized mixture of query trees, each with budget at
+      most r and success at least 2/3 on the bottom and every critical oracle, critical-set
+      cardinality is at most 3*r. This is the displayed finite randomized-query model.
+  - source: '6.10'
+    lean: Controller.Graph.NativeWidth.primal_treewidth_lower
+    module: Controller.Graph.NativeMinor
+    status: proved
+    note: Every TreewidthLE witness for the specified native primal graph has width at least
+      min(channels,buses). The native layout and graph definition remain explicit.
+  - source: '6.10'
+    lean: Controller.Graph.NativeWidth.incidence_treewidth_lower
+    module: Controller.Graph.NativeMinor
+    status: proved
+    note: Every TreewidthLE witness for the specified native incidence graph has width at
+      least min(channels,buses). No bound for all equivalent CNF representations is asserted.
+  - source: '6.12'
+    lean: Controller.Boundaries.Backdoors.native_backdoor_lower_bound
+    module: Controller.Boundaries.Backdoors
+    status: proved
+    note: Every strong or deletion backdoor of the bounded global native formula into the
+      displayed Horn, renamable-Horn or two-CNF class has cardinality at least the bus count.
+      Base-class membership is syntactic, including formulas with empty clauses.
+  - source: '6.12'
+    lean: Controller.Boundaries.Backdoors.specification_backdoor_lower_bound
+    module: Controller.Boundaries.Backdoors
+    status: proved
+    note: The same bus-count lower bound holds for strong or deletion backdoors of the displayed
+      specification formula into the three syntactic base classes.
+  - source: 6.11 (structural component)
+    lean: Controller.Graph.CoverCircuit.linear_width_obstruction
+    module: Controller.Graph.CoverNets
+    status: proved
+    note: For a supplied vertex-expanding graph with degree bound D, the explicit cover layout
+      satisfies the stated linear size-versus-treewidth, net-cutwidth and K-input block-width
+      inequalities, with C=12000*c*(D+1). Expansion and bounded degree remain premises; no
+      infinite expander construction or DNNF/OBDD lower bound is selected.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

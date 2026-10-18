@@ -1,0 +1,21 @@
+{
+  "challenge_module": "Phase1.P08.Challenge",
+  "solution_module": "Phase1.P08.Solution",
+  "theorem_names": [
+    "Controller.Native.ObservationProjection.observation_projection_of_unit_conflict",
+    "Controller.Native.ObservationProjection.optional_declared_cnf_projection",
+    "Controller.Native.ObservationProjection.selected_declared_cnf_projection",
+    "Controller.Recognition.IntendedDAG.recovery_exact",
+    "Controller.Recognition.GuardedFamily.decodeChecked_sound",
+    "Controller.Recognition.GuardedFamily.decodeChecked_lifting",
+    "Controller.Certificate.Pipeline.runFamily_sat_iff",
+    "Controller.Certificate.Pipeline.runFamily_certified_unsat",
+    "Controller.Certificate.Pipeline.runFamily_sat_sound",
+    "Controller.Certificate.Pipeline.runFamily_unsat_sound"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ]
+}

@@ -1,0 +1,92 @@
+version: v0.4
+project:
+  name: Formula-forest execution and weighted candidate bounds
+  description: Physical detection execution for supplied formula forests and bounds of admissible
+    true-set weights by a returned candidate score, with linear operation counts.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.DM
+  msc2020:
+  - 68Q25
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; 5.6, 6.7. The informal manuscript supplies the model and proof arguments
+    according to the recorded source-development account.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: Physical detection execution for supplied formula forests and bounds of admissible
+    true-set weights by a returned candidate score, with linear operation counts. The selected
+    score theorem is an upper-bound component of Corollary 6.7; attainment, candidate existence
+    and maximum-weight optimality of the emitted physical test are not conclusions of the
+    selected surface.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The supplied forest, matching representation, nonnegative weights and native
+    execution model are explicit. The selected weighted theorem assumes a returned candidate
+    and proves score domination plus operation bounds. It does not by itself give a maximum-weight
+    detecting witness or encoded-weight bit complexity.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of the frozen declaration list and proof-model boundaries. No independent
+    human or Palomar review is claimed.
+alignment:
+  namespace: Controller
+  statements:
+  - source: '5.6'
+    lean: Controller.Cost.ForestOriginalSemantics.original_physical_execution
+    module: Controller.Cost.ForestOriginalSemantics
+    status: proved
+    note: For a supplied formula forest with matching rows, heads and roots, the actual drive-one
+      native program halts, decides physical detectability and emits an admissible detecting
+      realization on acceptance. The statement separately bounds native ticks/live words,
+      weighted traversal operations, store trace and combined code/storage. Weights are nonnegative
+      in the displayed ordered additive group; arithmetic bit cost is separate.
+  - source: '6.7'
+    lean: Controller.Optimization.Weights.forest_maximum_weight
+    module: Controller.Optimization.Weights
+    status: proved
+    note: Conditional on the indexed weighted traversal returning a candidate, its score bounds
+      the weight of every admissible set making any supplied root true. The theorem also proves
+      linear indexed and arithmetic operation bounds. It supplies the upper-bound component
+      of 6.7; it does not assert that the candidate score is attained, that a candidate exists
+      whenever detection is possible, or that the physical output test has maximum weight.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

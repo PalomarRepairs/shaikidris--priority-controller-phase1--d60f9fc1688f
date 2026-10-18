@@ -1,0 +1,132 @@
+version: v0.4
+project:
+  name: Resource-respecting encoded simulation and reduction composition
+  description: Concrete binary encodings, cold native interpretation, executed image construction,
+    finite TM2 realization, logarithmic visited-work-cell bounds and parameterized reduction
+    composition. One fixed program or machine serves all stated inputs; construction cost
+    and intermediate output length are included in the relevant time bounds.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.CC
+  msc2020:
+  - 68Q04
+  - 68Q27
+sources:
+- title: K00 encoded-machine simulation and resource-respecting reduction bridge
+  authors:
+  - Idris Ali Shaik
+  type: original-proof
+  relationship: other
+  note: The selected custom-encoding and concrete-machine statements are presented in this
+    formalization. The entry README gives their proof mechanisms and assumptions; no novelty
+    is claimed for general machine simulation or reduction composition.
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: background
+  note: The controller manuscript supplies application models and motivation. The selected
+    K00 infrastructure theorems are stated and proved in this formalization.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: 'Six principal theorems from the 39-declaration K00 contract: accepted-image execution,
+    polynomial-time TM2 compilation through an executed constructor, composed logarithmic-space
+    tape execution, allocation-erased execution and visited-cell bounds, parameterized reduction
+    composition and finite TM2 realization. Application-specific constructor existence and
+    encoded-language class membership are separate obligations.'
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: Time claims refer to Mathlib FinTM2 outputs or polynomial computability where
+    explicitly stated. Space claims refer to the displayed finite-control tape transition
+    model and its Covered visited-cell predicate. Native compilation assumes an executed image
+    constructor and a source-time bound. Parameterized computation includes finite control
+    and a computable parameter coefficient; the realized machine is fixed independently of
+    the input.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of all 39 K00 declarations, their hypotheses and permitted axioms.
+    No independent human or Palomar review is claimed.
+alignment:
+  namespace: Controller.Complexity
+  statements:
+  - source: 'K00 infrastructure: decoded execution'
+    lean: Controller.Complexity.ImageCanonical.decoded_execution
+    module: Controller.Complexity.ImageCanonical
+    status: proved
+    note: For any binary input accepted as a machine image, every halted native execution
+      is simulated by the fixed cold interpreter, ending in the encoded native state. The
+      explicit time/space polynomials depend on input length plus native ticks; parsing acceptance
+      and halted native execution remain premises.
+  - source: 'K00 infrastructure: tm polytime'
+    lean: Controller.Complexity.NativeCompilation.tm_polytime
+    module: Controller.Complexity.NativeCompilation
+    status: proved
+    note: Given an actually executed polynomial-time image constructor, polynomially bounded
+      native executions and halted final states, the encoded final-state function is TM2-computable
+      in polynomial time. Constructor execution, image output length and source time are charged;
+      this does not supply an application-specific constructor.
+  - source: 'K00 infrastructure: composed'
+    lean: Controller.Complexity.SpaceTapeBridge.composed
+    module: Controller.Complexity.SpaceTapeBridge
+    status: proved
+    note: For two supplied logarithmic-space computations and the displayed finite bank equivalences,
+      the composed virtual-input program has an actual booted tape run, halts and outputs
+      the composition, with explicit logarithmic work capacity and tape-time bound. The input
+      is immutable and output is append-only under the stated model.
+  - source: 'K00 infrastructure: logspace'
+    lean: Controller.Complexity.SpaceTapeErasure.logspace
+    module: Controller.Complexity.SpaceTapeErasure
+    status: proved
+    note: For a supplied logarithmic-space program and finite port enumeration, allocation-erased
+      literal tape execution preserves the output and halt state. Covered accounts for all
+      visited work cells with the stated logarithmic finite allocation size; time has the
+      displayed bound.
+  - source: 'K00 infrastructure: compose'
+    lean: Controller.Complexity.ParameterReduction.compose
+    module: Controller.Complexity.ParameterReduction
+    status: proved
+    note: Two executed parameterized reductions compose with language correctness, an explicit
+      coefficient/degree and a computable majorant for parameter growth. The finite-prefix
+      maximum avoids a monotonicity premise for the second parameter bound.
+  - source: 'K00 infrastructure: realization'
+    lean: Controller.Complexity.ParameterTM.realization
+    module: Controller.Complexity.ParameterTM
+    status: proved
+    note: From the supplied parameterized execution witness, one finite TM2 machine and alphabet
+      maps are chosen before quantifying over inputs. Each input is computed within coefficient(parameter(input))*(inputLength+1)^degree
+      steps; the machine witness is input-independent.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

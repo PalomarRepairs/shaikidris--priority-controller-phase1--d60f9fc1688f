@@ -1,0 +1,119 @@
+version: v0.4
+project:
+  name: Exact fault images in priority controllers
+  description: Exact reachable qualifier-set images for a finite priority controller with
+    independent enable and request inputs and a specified first-stage bridge interface. The
+    formal statements characterize detection through arbitrary Boolean qualifier observations,
+    show that nonemptiness cannot be expressed by valid proper-coordinate relations, and classify
+    a specified qualifier-only stuck-at fault. The selector and fault equations are explicit.
+  authors:
+  - Idris Ali Shaik
+  license: Apache-2.0
+  responsible_maintainers:
+  - Idris Ali Shaik
+classification:
+  arxiv:
+  - cs.DM
+  msc2020:
+  - 06E30
+  - 68Q60
+sources:
+- title: 'Polynomial Fault Detection Without Bounded Width: Exact Reachable Sets in Priority
+    Controllers'
+  authors:
+  - Idris Ali Shaik
+  id: doi:10.5281/zenodo.23400057
+  type: preprint
+  location: https://zenodo.org/records/23400057
+  relationship: formalizes
+  note: Version 1.0; Section 3 and Theorem 4.1, Corollary 4.2, Lemma 4.3 and Theorem 4.4.
+    The informal manuscript supplied the controller model and proof arguments.
+  license: unknown
+  author_endorsement: participated
+related_formalizations: []
+status:
+  scope: The selected declarations concern the exact physical bridge image, drive-zero exclusion,
+    qualifier-observation detection equivalence, proper-coordinate projection obstruction
+    and specified stuck-at classification. The selected entry asserts no running-time, counting,
+    hardness, arbitrary-CNF recognition or whole-paper completion theorem. Other source-library
+    families are outside this entry's comparison surface.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+automation:
+  methods:
+  - method: agent
+    models:
+    - GPT-6
+    - Claude Opus 5.5
+    framework: OpenAI Codex and Claude Code
+    tool_setup: AI-assisted Lean proof development, source inspection, command-line builds
+      and axiom audits. Recorded model identities are not a complete historical usage log.
+    cost:
+      wall_time: not tracked
+      spend_usd: not tracked
+      hardware: Local Apple Silicon computer
+    prompting_notes: Formalize the supplied controller equations and prove the exact image
+      and detection statements without changing their hypotheses.
+  spend_usd: not tracked
+  notes: The author directed the formalization. AI agents assisted with proof construction
+    and packaging.
+fidelity:
+  divergences: The first-bus existence proof is a field of the primary-input type, and legal
+    bridge data imply at least two channels. Eligibility is expressed as nonemptiness together
+    with target membership when the bus count is one. The projection theorem permits an arbitrary
+    indexed family of local relations. Additional unnumbered remarks following Corollary 4.2
+    and the manuscript's later results are not advertised by these selected declarations.
+review:
+  status: self-assessed
+  reviewers: []
+  notes: Implementer audit of literal controller equations, fault conventions, theorem types
+    and permitted axioms. No independent human or Palomar review is claimed.
+alignment:
+  namespace: Controller.Physical
+  statements:
+  - source: Theorem 4.1, drive-one image
+    lean: Controller.Physical.separated_drive_one_set_pair_image_iff
+    module: Controller.Physical.ExactImage
+    status: proved
+    note: With positive bus count and the separated bridge interface, drive-one inputs whose
+      first flags differ realize exactly the pairs H={target} and admissible K. Both directions
+      quantify actual primary inputs and wire values; the faulty qualifier vector is read
+      before observation encoding.
+  - source: Theorem 4.1, drive zero
+    lean: Controller.Physical.not_bridgeDetectable_drive_zero
+    module: Controller.Physical.BridgeCofactors
+    status: proved
+    note: For drive zero, no input detects the separated bridge through any finite family
+      of Boolean qualifier observations. The statement is independent of a decoder grammar.
+  - source: Corollary 4.2
+    lean: Controller.Physical.bridge_detectable_iff_exists_output
+    module: Controller.Physical.DetectionBridge
+    status: proved
+    note: For positive bus count, physical bridge detectability is equivalent to drive one
+      and an admissible set on which some Boolean observation differs from its target-singleton
+      value. The observation family is arbitrary finite data.
+  - source: Lemma 4.3, projection
+    lean: Controller.Physical.proper_projection_full
+    module: Controller.Physical.GlobalProjection
+    status: proved
+    note: Every local assignment on a proper channel subset extends to a globally nonzero
+      qualifier assignment. This is the explicit projection obstruction used in 4.3.
+  - source: Lemma 4.3, relation obstruction
+    lean: Controller.Physical.valid_local_relations_accept_zero
+    module: Controller.Physical.GlobalProjection
+    status: proved
+    note: Any family of proper-scope relations valid on every nonzero qualifier assignment
+      also accepts every local projection of zero. It therefore cannot express global nonemptiness
+      using only those relations.
+  - source: Theorem 4.4
+    lean: Controller.Physical.stuck_detectable_iff
+    module: Controller.Physical.StuckAtImage
+    status: proved
+    note: For the specified final-qualifier stuck occurrence, detection is equivalent to at
+      least two channels and either stuck one or equality of target and distinguished channel.
+      Selector occurrences are unchanged; this is the displayed observation fault model.
+acknowledgements: Lean 4, Mathlib, OpenAI Codex and Claude Code.

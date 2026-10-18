@@ -1,0 +1,25 @@
+{
+  "challenge_module": "Phase1.P09.Challenge",
+  "solution_module": "Phase1.P09.Solution",
+  "theorem_names": [
+    "Controller.Cost.NativeResolution.native_refutation_encoded_cubic",
+    "Controller.Cost.NativeResolution.compactNativeCompile_complete",
+    "Controller.Cost.NativeResolution.compactNativeCompile_checked",
+    "Controller.Cost.NativeResolution.canonical_derived_literal_storage",
+    "Controller.Cost.WrapperResolution.runOptional_complete_cubic",
+    "Controller.Cost.WrapperResolution.runSelected_complete_cubic",
+    "Controller.Cost.WrapperResolution.runOptional_checked",
+    "Controller.Cost.WrapperResolution.runSelected_checked"
+  ],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "definition_names": [
+    "Controller.Cost.NativeResolution.compactNativeCompile",
+    "Controller.Cost.NativeResolution.compactRefute",
+    "Controller.Cost.WrapperResolution.runOptional",
+    "Controller.Cost.WrapperResolution.runSelected"
+  ]
+}
