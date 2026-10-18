@@ -1,4 +1,9 @@
 module
+public meta import Lean.Elab.Command
+public meta import Lean.Meta.Match.Match
+meta import all Lean.Meta.Match.Match
+public meta import Lean.Meta.Tactic.AuxLemma
+
 
 public import Lean.Elab.Tactic.Omega
 public import Mathlib.Algebra.BigOperators.Fin
@@ -19,6 +24,24 @@ public import Mathlib.Tactic.DeriveFintype
 public import Mathlib.Tactic.Linarith
 public import Mathlib.Tactic.Ring
 
+/- Preserve source-module names and module-local elaboration caches when
+   flattening definitions. Every declaration is still checked by Lean. -/
+open Lean Elab Command in
+elab "source_context " source:str : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then
+    let original := (← getEnv).mainModule
+    modifyScope fun scope => { scope with opts := scope.opts.set `sourceContextRoot original.toString }
+  modifyEnv fun env =>
+    let env := env.setMainModule source.getString.toName
+    let env := Meta.auxLemmasExt.setState env {}
+    (private_decl% Lean.Meta.Match.matcherExt).setState env {}
+open Lean Elab Command in
+elab "end_source_context" : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then throwError "missing original Challenge module"
+  modifyEnv (·.setMainModule root.toName)
+
 @[expose] public section
 
 /-!
@@ -31,10 +54,11 @@ The selected statements retain the exact assumptions of the proof library.
 -/
 
 /- Definitions from Controller.Cost.Model. -/
+source_context "Controller.Cost.Model"
 namespace Controller.Cost
-abbrev Word (width : Nat) := Fin (2 ^ width)
+abbrev Word (width : Nat) := Fin (@HPow.hPow.{0, 0, 0} Nat Nat Nat (@instHPow.{0, 0} Nat Nat (@instPowNat.{0} Nat instNatPowNat)) (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) width)
 def word (width value : Nat) : Word width :=
-  ⟨value % (2 ^ width), Nat.mod_lt _ (Nat.two_pow_pos width)⟩
+  ⟨value % ((@HPow.hPow Nat Nat Nat (@instHPow Nat Nat (@instPowNat Nat instNatPowNat)) 2 width)), Nat.mod_lt _ (Nat.two_pow_pos width)⟩
 structure State (width registers : Nat) where
   reg : Fin registers → Word width
   heap : Array (Word width)
@@ -81,7 +105,7 @@ def step (instruction : Instruction width registers) (s : State width registers)
       if h : (s.reg address).val < s.heap.size then
         some { next with heap := s.heap.set (s.reg address).val (s.reg src) } else none
   | .allocate src =>
-      if s.heap.size < 2 ^ width then some { next with heap := s.heap.push (s.reg src) }
+      if s.heap.size < (@HPow.hPow Nat Nat Nat (@instHPow Nat Nat (@instPowNat Nat instNatPowNat)) 2 width) then some { next with heap := s.heap.push (s.reg src) }
       else none
   | .release => if s.heap.isEmpty then none else some { next with heap := s.heap.pop }
   | .push src => some { next with stack := s.reg src :: s.stack }
@@ -108,6 +132,7 @@ inductive Execution (p : Program width registers) :
 end Controller.Cost
 
 /- Definitions from Controller.Complexity.Encoding. -/
+source_context "Controller.Complexity.Encoding"
 namespace Controller.Complexity.Encoding
 open Controller.Cost
 def bits : Nat → Nat → List Bool
@@ -162,12 +187,17 @@ def readCount : List Bool → Option (Nat × List Bool)
   | true :: rest => (readCount rest).map fun pair => (pair.1+1,pair.2)
 def encodeWords (width : Nat) (words : List (Word width)) : List Bool :=
   frameCount words.length (wordList width words)
+def decodeWords (width : Nat) (input : List Bool) : Option (List (Word width)) := do
+  let (count,payload) ← readCount input
+  let (words,rest) ← readWords width count payload
+  if rest=[] then some words else none
 def readFramedWords (width : Nat) (input : List Bool) : Option (List (Word width) × List Bool) := do
   let (count,payload) ← readCount input
   readWords width count payload
 end Controller.Complexity.Encoding
 
 /- Definitions from Controller.Complexity.MachineBridge. -/
+source_context "Controller.Complexity.MachineBridge"
 namespace Controller.Complexity.MachineBridge
 open Controller.Cost Controller.Complexity.Encoding
 def encodeState (state : State width registers) : List Bool :=
@@ -240,6 +270,9 @@ def read (width registers : Nat) (input : List Bool) : Option (Instruction width
   let (operands, rest) ← readFramedWords width (input.drop 4)
   let instruction ← readFields registers opcode.val operands
   return (instruction, rest)
+def decode (width registers : Nat) (input : List Bool) : Option (Instruction width registers) := do
+  let (instruction, rest) ← read width registers input
+  if rest=[] then some instruction else none
 def readMany (width registers : Nat) : Nat → List Bool → Option (List (Instruction width registers) × List Bool)
   | 0, input => some ([], input)
   | count+1, input => do
@@ -253,6 +286,7 @@ def encodeProgram (bound : registers ≤ 2^width) (program : Program width regis
 end Controller.Complexity.InstructionCodec
 
 /- Definitions from Controller.Complexity.MachineInput. -/
+source_context "Controller.Complexity.MachineInput"
 namespace Controller.Complexity.MachineInput
 open Controller.Cost Encoding
 structure Image where
@@ -278,6 +312,7 @@ def decode (input : List Bool) : Option Image := do
 end Controller.Complexity.MachineInput
 
 /- Definitions from Controller.Complexity.Reductions. -/
+source_context "Controller.Complexity.Reductions"
 namespace Controller.Complexity.StackMachine
 open scoped BigOperators
 inductive Instruction (K Q : Type)
@@ -344,6 +379,7 @@ def Computes [Fintype K] [DecidableEq K] (program : Program K Q)
 end Controller.Complexity.StackMachine
 
 /- Definitions from Controller.Complexity.ColdInterpreter. -/
+source_context "Controller.Complexity.ColdInterpreter"
 namespace Controller.Complexity.ColdInterpreter
 open StackMachine
 open scoped BigOperators
@@ -359,6 +395,7 @@ noncomputable instance labelFintype : Fintype Label := by
 end Controller.Complexity.ColdInterpreter
 
 /- Definitions from Controller.Complexity.NativePolynomial. -/
+source_context "Controller.Complexity.NativePolynomial"
 namespace Controller.Complexity.NativePolynomial
 open StackMachine
 noncomputable def parserPolynomial : Polynomial Nat := 32*Polynomial.X^4+256*Polynomial.X^3+
@@ -374,6 +411,7 @@ noncomputable def spacePolynomial : Polynomial Nat := 12*framePolynomial+119
 end Controller.Complexity.NativePolynomial
 
 /- Definitions from Controller.Complexity.NativeCompilation. -/
+source_context "Controller.Complexity.NativeCompilation"
 namespace Controller.Complexity.NativeCompilation
 open StackMachine
 /-- An executed image constructor and a polynomial native-time bound give a fixed finite TM2 computing the complete encoded final state in polynomial time. -/
@@ -391,6 +429,7 @@ theorem tm_polytime [Fintype K] [DecidableEq K] [Fintype Q]
 end Controller.Complexity.NativeCompilation
 
 /- Definitions from Controller.Complexity.ImageCanonical. -/
+source_context "Controller.Complexity.ImageCanonical"
 namespace Controller.Complexity.ImageCanonical
 open Encoding
 /-- Every accepted encoded image executes its source run in the cold binary interpreter within the displayed literal time and space polynomials. -/
@@ -407,6 +446,7 @@ theorem decoded_execution (input : List Bool) (image : MachineInput.Image)
 end Controller.Complexity.ImageCanonical
 
 /- Definitions from Controller.Complexity.ReadOnlyInput. -/
+source_context "Controller.Complexity.ReadOnlyInput"
 namespace Controller.Complexity.ReadOnlyInput
 structure Tape where
   left : List Bool
@@ -425,6 +465,7 @@ def moveRight (tape : Tape) : Tape :=
 end Controller.Complexity.ReadOnlyInput
 
 /- Definitions from Controller.Complexity.SpaceMachine. -/
+source_context "Controller.Complexity.SpaceMachine"
 namespace Controller.Complexity.SpaceMachine
 open scoped BigOperators
 inductive Instruction (K Q : Type)
@@ -478,6 +519,7 @@ inductive Execution [Fintype K] [DecidableEq K] (program : Program K Q) :
 end Controller.Complexity.SpaceMachine
 
 /- Definitions from Controller.Complexity.LogSpaceBounds. -/
+source_context "Controller.Complexity.LogSpaceBounds"
 namespace Controller.Complexity.LogSpaceBounds
 open SpaceMachine
 def bits (length : Nat) := Nat.log 2 (length+2)+1
@@ -495,6 +537,7 @@ def Computes [Fintype K] [DecidableEq K] (program : SpaceMachine.Program K Q)
 end Controller.Complexity.LogSpaceBounds
 
 /- Definitions from Controller.Complexity.SpaceLookup. -/
+source_context "Controller.Complexity.SpaceLookup"
 namespace Controller.Complexity.SpaceLookup
 open SpaceMachine
 abbrev Bank (K : Type) := K ⊕ Fin 3
@@ -502,6 +545,7 @@ abbrev Label (Q : Type) := Q ⊕ ((Q × Fin 7) ⊕ (Bool ⊕ Unit))
 end Controller.Complexity.SpaceLookup
 
 /- Definitions from Controller.Complexity.SpaceBuffers. -/
+source_context "Controller.Complexity.SpaceBuffers"
 namespace Controller.Complexity.SpaceBuffers
 open SpaceMachine
 open scoped BigOperators
@@ -509,12 +553,14 @@ abbrev CopyLabel := Fin 4 ⊕ Fin 6
 end Controller.Complexity.SpaceBuffers
 
 /- Definitions from Controller.Complexity.SpaceErase. -/
+source_context "Controller.Complexity.SpaceErase"
 namespace Controller.Complexity.SpaceErase
 open SpaceMachine
 abbrev Label (n : Nat) := Fin (n+1) × Bool
 end Controller.Complexity.SpaceErase
 
 /- Definitions from Controller.Complexity.SpaceRequestSetup. -/
+source_context "Controller.Complexity.SpaceRequestSetup"
 namespace Controller.Complexity.SpaceRequestSetup
 open SpaceMachine
 abbrev Bank (K J : Type) := SpaceLookup.Bank K ⊕ J
@@ -522,12 +568,14 @@ abbrev Label (n : Nat) := (SpaceErase.Label n ⊕ SpaceBuffers.CopyLabel) ⊕ Fi
 end Controller.Complexity.SpaceRequestSetup
 
 /- Definitions from Controller.Complexity.SpaceRequest. -/
+source_context "Controller.Complexity.SpaceRequest"
 namespace Controller.Complexity.SpaceRequest
 open SpaceMachine
 abbrev Label (n : Nat) (Q : Type) := SpaceRequestSetup.Label n ⊕ SpaceLookup.Label Q
 end Controller.Complexity.SpaceRequest
 
 /- Definitions from Controller.Complexity.SpaceVirtual. -/
+source_context "Controller.Complexity.SpaceVirtual"
 namespace Controller.Complexity.SpaceVirtual
 open SpaceMachine
 abbrev Caller (B : Type) := B ⊕ Bool
@@ -541,18 +589,21 @@ noncomputable def program (first : SpaceMachine.Program A P) (second : SpaceMach
 end Controller.Complexity.SpaceVirtual
 
 /- Definitions from Controller.Complexity.SpaceLogGrowth. -/
+source_context "Controller.Complexity.SpaceLogGrowth"
 namespace Controller.Complexity.SpaceLogGrowth
 def constant (labels banks coefficient : Nat) :=
   (labels+1)*2^(LogSpaceBounds.degree coefficient banks)+LogSpaceBounds.degree coefficient banks+3
 end Controller.Complexity.SpaceLogGrowth
 
 /- Definitions from Controller.Complexity.SpaceComposition. -/
+source_context "Controller.Complexity.SpaceComposition"
 namespace Controller.Complexity.SpaceComposition
 def constant (firstLabels firstBanks firstConstant secondConstant : Nat) :=
   firstConstant+(secondConstant+2)*SpaceLogGrowth.constant firstLabels firstBanks firstConstant+2
 end Controller.Complexity.SpaceComposition
 
 /- Definitions from Controller.Complexity.SpaceInputTape. -/
+source_context "Controller.Complexity.SpaceInputTape"
 namespace Controller.Complexity.SpaceInputTape
 open Turing
 inductive Symbol
@@ -570,6 +621,7 @@ def observed : Symbol → Option Bool
 end Controller.Complexity.SpaceInputTape
 
 /- Definitions from Controller.Complexity.SpaceWorkTape. -/
+source_context "Controller.Complexity.SpaceWorkTape"
 namespace Controller.Complexity.SpaceWorkTape
 open Turing
 inductive Symbol
@@ -587,6 +639,7 @@ def observed : Symbol → Option Bool
 end Controller.Complexity.SpaceWorkTape
 
 /- Definitions from Controller.Complexity.SpaceTapeMachine. -/
+source_context "Controller.Complexity.SpaceTapeMachine"
 namespace Controller.Complexity.SpaceTapeMachine
 open Turing
 inductive Label (n : Nat) (K Q : Type)
@@ -661,6 +714,7 @@ def configuration (source : SpaceMachine.State K Q) : State n K Q :=
 end Controller.Complexity.SpaceTapeMachine
 
 /- Definitions from Controller.Complexity.SpaceTapeRun. -/
+source_context "Controller.Complexity.SpaceTapeRun"
 namespace Controller.Complexity.SpaceTapeRun
 open SpaceTapeMachine SpaceMachine
 def Within (capacity : Nat) (state : SpaceTapeMachine.State n K Q) : Prop :=
@@ -674,6 +728,7 @@ inductive Run [DecidableEq K] (enumeration : Fin n ≃ K) (program : SpaceMachin
 end Controller.Complexity.SpaceTapeRun
 
 /- Definitions from Controller.Complexity.SpaceTapeBridge. -/
+source_context "Controller.Complexity.SpaceTapeBridge"
 namespace Controller.Complexity.SpaceTapeBridge
 open SpaceMachine SpaceTapeMachine SpaceTapeRun
 /-- Two executed logarithmic-workspace programs have a composed tape execution with the displayed workspace capacity and time bound, starting from blank work tapes. -/
@@ -695,6 +750,7 @@ theorem composed [Fintype A] [Fintype B] [Fintype P] [Fintype Q] [DecidableEq A]
 end Controller.Complexity.SpaceTapeBridge
 
 /- Definitions from Controller.Complexity.SpaceTapeAllocation. -/
+source_context "Controller.Complexity.SpaceTapeAllocation"
 namespace Controller.Complexity.SpaceTapeAllocation
 open SpaceTapeMachine SpaceTapeRun
 open scoped BigOperators
@@ -707,6 +763,7 @@ inductive Covered [DecidableEq K] (enumeration : Fin n ≃ K) (program : SpaceMa
 end Controller.Complexity.SpaceTapeAllocation
 
 /- Definitions from Controller.Complexity.SpaceTapeErasure. -/
+source_context "Controller.Complexity.SpaceTapeErasure"
 namespace Controller.Complexity.SpaceTapeErasure
 open SpaceTapeMachine SpaceTapeRun
 open scoped BigOperators
@@ -742,6 +799,7 @@ theorem logspace [Fintype K] [DecidableEq K] [Fintype Q]
 end Controller.Complexity.SpaceTapeErasure
 
 /- Definitions from Controller.Complexity.ParameterMajorant. -/
+source_context "Controller.Complexity.ParameterMajorant"
 namespace Controller.Complexity.ParameterMajorant
 def maximum (function : Nat → Nat) : Nat → Nat
   | 0 => function 0
@@ -749,6 +807,7 @@ def maximum (function : Nat → Nat) : Nat → Nat
 end Controller.Complexity.ParameterMajorant
 
 /- Definitions from Controller.Complexity.ParameterBounds. -/
+source_context "Controller.Complexity.ParameterBounds"
 namespace Controller.Complexity.ParameterBounds
 def degree (first second : Nat) := first+(first+1)*second
 def coefficient (first second parameter : Nat → Nat) (secondDegree : Nat) (k : Nat) :=
@@ -756,6 +815,7 @@ def coefficient (first second parameter : Nat → Nat) (secondDegree : Nat) (k :
 end Controller.Complexity.ParameterBounds
 
 /- Definitions from Controller.Complexity.ParameterRuntime. -/
+source_context "Controller.Complexity.ParameterRuntime"
 namespace Controller.Complexity.ParameterRuntime
 open StackMachine
 def Computes [Fintype K] [DecidableEq K] (program : Program K Q)
@@ -767,6 +827,7 @@ def Computes [Fintype K] [DecidableEq K] (program : Program K Q)
 end Controller.Complexity.ParameterRuntime
 
 /- Definitions from Controller.Complexity.ParameterReduction. -/
+source_context "Controller.Complexity.ParameterReduction"
 namespace Controller.Complexity.ParameterReduction
 open StackMachine
 def Reduces [Fintype K] [DecidableEq K] (program : Program K Q) (function : List Bool → List Bool)
@@ -788,6 +849,7 @@ theorem compose [Fintype A] [Fintype B] [DecidableEq A] [DecidableEq B]
 end Controller.Complexity.ParameterReduction
 
 /- Definitions from Controller.Complexity.ParameterTM. -/
+source_context "Controller.Complexity.ParameterTM"
 namespace Controller.Complexity.ParameterTM
 open StackMachine
 /-- One fixed finite TM2 and fixed alphabet equivalences realize every input of the parameterized computation within its supplied time bound. -/
@@ -800,3 +862,5 @@ theorem realization [Fintype K] [DecidableEq K] {program : Program K Q}
         (some ((function input).map outputAlphabet)) (coefficient (parameter input)*(input.length+1)^degree)) := by
   sorry
 end Controller.Complexity.ParameterTM
+
+end_source_context

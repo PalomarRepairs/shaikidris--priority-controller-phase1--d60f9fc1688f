@@ -1,4 +1,10 @@
 module
+public meta import Lean.Elab.Tactic.ElabTerm
+public meta import Lean.Elab.Command
+public meta import Lean.Meta.Match.Match
+meta import all Lean.Meta.Match.Match
+public meta import Lean.Meta.Tactic.AuxLemma
+
 public import Lean.Elab.Tactic.Omega
 public import Mathlib.Algebra.BigOperators.Fin
 public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
@@ -38,6 +44,28 @@ public import Mathlib.Tactic.IntervalCases
 public import Mathlib.Tactic.NormNum
 public import Mathlib.Tactic.Ring
 public import Std.Sat.CNF
+/- Preserve source-module names and module-local elaboration caches when
+   flattening definitions. Every declaration is still checked by Lean. -/
+open Lean Elab Command in
+elab "source_context " source:str : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then
+    let original := (← getEnv).mainModule
+    modifyScope fun scope => { scope with opts := scope.opts.set `sourceContextRoot original.toString }
+  modifyEnv fun env =>
+    let env := env.setMainModule source.getString.toName
+    let env := Meta.auxLemmasExt.setState env {}
+    (private_decl% Lean.Meta.Match.matcherExt).setState env {}
+open Lean Elab Command in
+elab "end_source_context" : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then throwError "missing original Challenge module"
+  modifyEnv (·.setMainModule root.toName)
+
+set_option backward.privateInPublic true
+open Lean Elab Tactic in
+elab "source_exact " proof:term : tactic => withoutExporting <| Lean.Meta.withTransparency .all do
+  evalTactic (← `(tactic| exact $proof))
 @[expose] public section
 noncomputable section
 /-!
@@ -47,14 +75,21 @@ are explicit. Definition holes identify only implementation witnesses; the
 selected universal theorems constrain their executions or returned results.
 The selected statements retain the exact assumptions of the proof library.
 -/
+/- Source-exported auxiliary proofs; addDecl checks every complete proof. -/
+open Lean Elab Command in
+run_cmd do
+  let e0 : Lean.Expr := .sort (Lean.Level.succ (Lean.Level.param `u_1)); let e1 : Lean.Expr := .const (`AddMonoidWithOne) ([Lean.Level.param `u_1]); let e2 : Lean.Expr := .bvar 0; let e3 : Lean.Expr := .app e1 e2; let e4 : Lean.Expr := .const (`PartialOrder) ([Lean.Level.param `u_1]); let e5 : Lean.Expr := .bvar 1; let e6 : Lean.Expr := .app e4 e5; let e7 : Lean.Expr := .const (`ZeroLEOneClass) ([Lean.Level.param `u_1]); let e8 : Lean.Expr := .bvar 2; let e9 : Lean.Expr := .app e7 e8; let e10 : Lean.Expr := .const (`AddZero.toZero) ([Lean.Level.param `u_1]); let e11 : Lean.Expr := .app e10 e8; let e12 : Lean.Expr := .const (`AddZeroClass.toAddZero) ([Lean.Level.param `u_1]); let e13 : Lean.Expr := .app e12 e8; let e14 : Lean.Expr := .const (`AddMonoid.toAddZeroClass) ([Lean.Level.param `u_1]); let e15 : Lean.Expr := .app e14 e8; let e16 : Lean.Expr := .const (`AddMonoidWithOne.toAddMonoid) ([Lean.Level.param `u_1]); let e17 : Lean.Expr := .app e16 e8; let e18 : Lean.Expr := .app e17 e5; let e19 : Lean.Expr := .app e15 e18; let e20 : Lean.Expr := .app e13 e19; let e21 : Lean.Expr := .app e11 e20; let e22 : Lean.Expr := .app e9 e21; let e23 : Lean.Expr := .const (`AddMonoidWithOne.toOne) ([Lean.Level.param `u_1]); let e24 : Lean.Expr := .app e23 e8; let e25 : Lean.Expr := .app e24 e5; let e26 : Lean.Expr := .app e22 e25; let e27 : Lean.Expr := .const (`Preorder.toLE) ([Lean.Level.param `u_1]); let e28 : Lean.Expr := .app e27 e8; let e29 : Lean.Expr := .const (`PartialOrder.toPreorder) ([Lean.Level.param `u_1]); let e30 : Lean.Expr := .app e29 e8; let e31 : Lean.Expr := .app e30 e2; let e32 : Lean.Expr := .app e28 e31; let e33 : Lean.Expr := .app e26 e32; let e34 : Lean.Expr := .const (`NeZero) ([Lean.Level.param `u_1]); let e35 : Lean.Expr := .bvar 3; let e36 : Lean.Expr := .app e34 e35; let e37 : Lean.Expr := .app e10 e35; let e38 : Lean.Expr := .app e12 e35; let e39 : Lean.Expr := .app e14 e35; let e40 : Lean.Expr := .app e16 e35; let e41 : Lean.Expr := .app e40 e8; let e42 : Lean.Expr := .app e39 e41; let e43 : Lean.Expr := .app e38 e42; let e44 : Lean.Expr := .app e37 e43; let e45 : Lean.Expr := .app e36 e44; let e46 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.param `u_1]); let e47 : Lean.Expr := .app e46 e35; let e48 : Lean.Expr := .lit (Lean.Literal.natVal 1); let e49 : Lean.Expr := .app e47 e48; let e50 : Lean.Expr := .const (`One.toOfNat1) ([Lean.Level.param `u_1]); let e51 : Lean.Expr := .app e50 e35; let e52 : Lean.Expr := .app e23 e35; let e53 : Lean.Expr := .app e52 e8; let e54 : Lean.Expr := .app e51 e53; let e55 : Lean.Expr := .app e49 e54; let e56 : Lean.Expr := .app e45 e55; let e57 : Lean.Expr := .const (`AddLeftMono) ([Lean.Level.param `u_1]); let e58 : Lean.Expr := .bvar 4; let e59 : Lean.Expr := .app e57 e58; let e60 : Lean.Expr := .const (`AddSemigroup.toAdd) ([Lean.Level.param `u_1]); let e61 : Lean.Expr := .app e60 e58; let e62 : Lean.Expr := .const (`AddMonoid.toAddSemigroup) ([Lean.Level.param `u_1]); let e63 : Lean.Expr := .app e62 e58; let e64 : Lean.Expr := .app e16 e58; let e65 : Lean.Expr := .app e64 e35; let e66 : Lean.Expr := .app e63 e65; let e67 : Lean.Expr := .app e61 e66; let e68 : Lean.Expr := .app e59 e67; let e69 : Lean.Expr := .app e27 e58; let e70 : Lean.Expr := .app e29 e58; let e71 : Lean.Expr := .app e70 e8; let e72 : Lean.Expr := .app e69 e71; let e73 : Lean.Expr := .app e68 e72; let e74 : Lean.Expr := .const (`Eq) ([Lean.Level.succ (Lean.Level.zero)]); let e75 : Lean.Expr := .sort (Lean.Level.zero); let e76 : Lean.Expr := .app e74 e75; let e77 : Lean.Expr := .const (`LT.lt) ([Lean.Level.param `u_1]); let e78 : Lean.Expr := .bvar 5; let e79 : Lean.Expr := .app e77 e78; let e80 : Lean.Expr := .const (`Preorder.toLT) ([Lean.Level.param `u_1]); let e81 : Lean.Expr := .app e80 e78; let e82 : Lean.Expr := .app e29 e78; let e83 : Lean.Expr := .app e82 e35; let e84 : Lean.Expr := .app e81 e83; let e85 : Lean.Expr := .app e79 e84; let e86 : Lean.Expr := .app e46 e78; let e87 : Lean.Expr := .lit (Lean.Literal.natVal 0); let e88 : Lean.Expr := .app e86 e87; let e89 : Lean.Expr := .const (`Zero.toOfNat0) ([Lean.Level.param `u_1]); let e90 : Lean.Expr := .app e89 e78; let e91 : Lean.Expr := .app e10 e78; let e92 : Lean.Expr := .app e12 e78; let e93 : Lean.Expr := .app e14 e78; let e94 : Lean.Expr := .app e16 e78; let e95 : Lean.Expr := .app e94 e58; let e96 : Lean.Expr := .app e93 e95; let e97 : Lean.Expr := .app e92 e96; let e98 : Lean.Expr := .app e91 e97; let e99 : Lean.Expr := .app e90 e98; let e100 : Lean.Expr := .app e88 e99; let e101 : Lean.Expr := .app e85 e100; let e102 : Lean.Expr := .lit (Lean.Literal.natVal 2); let e103 : Lean.Expr := .app e86 e102; let e104 : Lean.Expr := .const (`instOfNatAtLeastTwo) ([Lean.Level.param `u_1]); let e105 : Lean.Expr := .app e104 e78; let e106 : Lean.Expr := .app e105 e102; let e107 : Lean.Expr := .const (`AddMonoidWithOne.toNatCast) ([Lean.Level.param `u_1]); let e108 : Lean.Expr := .app e107 e78; let e109 : Lean.Expr := .app e108 e58; let e110 : Lean.Expr := .app e106 e109; let e111 : Lean.Expr := .const (`Nat.instAtLeastTwoHAddOfNat) ([]); let e112 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.zero]); let e113 : Lean.Expr := .const (`Nat) ([]); let e114 : Lean.Expr := .app e112 e113; let e115 : Lean.Expr := .app e114 e48; let e116 : Lean.Expr := .const (`instOfNatNat) ([]); let e117 : Lean.Expr := .app e116 e48; let e118 : Lean.Expr := .app e115 e117; let e119 : Lean.Expr := .app e111 e118; let e120 : Lean.Expr := .const (`Nat.instNeZeroSucc) ([]); let e121 : Lean.Expr := .app e114 e87; let e122 : Lean.Expr := .app e116 e87; let e123 : Lean.Expr := .app e121 e122; let e124 : Lean.Expr := .app e120 e123; let e125 : Lean.Expr := .app e119 e124; let e126 : Lean.Expr := .app e110 e125; let e127 : Lean.Expr := .app e103 e126; let e128 : Lean.Expr := .app e101 e127; let e129 : Lean.Expr := .app e76 e128; let e130 : Lean.Expr := .const (`True) ([]); let e131 : Lean.Expr := .app e129 e130; let e132 : Lean.Expr := .forallE .anonymous e73 e131 (Lean.BinderInfo.instImplicit); let e133 : Lean.Expr := .forallE .anonymous e56 e132 (Lean.BinderInfo.instImplicit); let e134 : Lean.Expr := .forallE .anonymous e33 e133 (Lean.BinderInfo.instImplicit); let e135 : Lean.Expr := .forallE .anonymous e6 e134 (Lean.BinderInfo.instImplicit); let e136 : Lean.Expr := .forallE .anonymous e3 e135 (Lean.BinderInfo.instImplicit); let e137 : Lean.Expr := .forallE .anonymous e0 e136 (Lean.BinderInfo.implicit); let e138 : Lean.Expr := .const (`eq_true) ([]); let e139 : Lean.Expr := .app e138 e128; let e140 : Lean.Expr := .const (`zero_lt_two) ([Lean.Level.param `u_1]); let e141 : Lean.Expr := .app e140 e78; let e142 : Lean.Expr := .app e141 e58; let e143 : Lean.Expr := .app e142 e35; let e144 : Lean.Expr := .app e143 e8; let e145 : Lean.Expr := .app e144 e5; let e146 : Lean.Expr := .app e145 e2; let e147 : Lean.Expr := .app e139 e146; let e148 : Lean.Expr := .lam .anonymous e73 e147 (Lean.BinderInfo.instImplicit); let e149 : Lean.Expr := .lam .anonymous e56 e148 (Lean.BinderInfo.instImplicit); let e150 : Lean.Expr := .lam .anonymous e33 e149 (Lean.BinderInfo.instImplicit); let e151 : Lean.Expr := .lam .anonymous e6 e150 (Lean.BinderInfo.instImplicit); let e152 : Lean.Expr := .lam .anonymous e3 e151 (Lean.BinderInfo.instImplicit); let e153 : Lean.Expr := .lam .anonymous e0 e152 (Lean.BinderInfo.implicit); let fact : Lean.TheoremVal := { name := `zero_lt_two._simp_1, levelParams := [`u_1], type := e137, value := e153 }; if let some old := (← getEnv).toKernelEnv.find? fact.name then unless old == .thmInfo fact do throwError "conflicting Source auxiliary fact" else liftCoreM <| addDecl (.thmDecl fact)
+open Lean Elab Command in
+run_cmd do
+  let e0 : Lean.Expr := .const (`Nat) ([]); let e1 : Lean.Expr := .const (`Eq) ([Lean.Level.succ (Lean.Level.zero)]); let e2 : Lean.Expr := .sort (Lean.Level.zero); let e3 : Lean.Expr := .app e1 e2; let e4 : Lean.Expr := .const (`LT.lt) ([Lean.Level.zero]); let e5 : Lean.Expr := .app e4 e0; let e6 : Lean.Expr := .const (`instLTNat) ([]); let e7 : Lean.Expr := .app e5 e6; let e8 : Lean.Expr := .bvar 0; let e9 : Lean.Expr := .app e7 e8; let e10 : Lean.Expr := .const (`HAdd.hAdd) ([Lean.Level.zero, Lean.Level.zero, Lean.Level.zero]); let e11 : Lean.Expr := .app e10 e0; let e12 : Lean.Expr := .app e11 e0; let e13 : Lean.Expr := .app e12 e0; let e14 : Lean.Expr := .const (`instHAdd) ([Lean.Level.zero]); let e15 : Lean.Expr := .app e14 e0; let e16 : Lean.Expr := .const (`instAddNat) ([]); let e17 : Lean.Expr := .app e15 e16; let e18 : Lean.Expr := .app e13 e17; let e19 : Lean.Expr := .app e18 e8; let e20 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.zero]); let e21 : Lean.Expr := .app e20 e0; let e22 : Lean.Expr := .lit (Lean.Literal.natVal 1); let e23 : Lean.Expr := .app e21 e22; let e24 : Lean.Expr := .const (`instOfNatNat) ([]); let e25 : Lean.Expr := .app e24 e22; let e26 : Lean.Expr := .app e23 e25; let e27 : Lean.Expr := .app e19 e26; let e28 : Lean.Expr := .app e9 e27; let e29 : Lean.Expr := .app e3 e28; let e30 : Lean.Expr := .const (`True) ([]); let e31 : Lean.Expr := .app e29 e30; let e32 : Lean.Expr := .forallE .anonymous e0 e31 (Lean.BinderInfo.default); let e33 : Lean.Expr := .const (`eq_true) ([]); let e34 : Lean.Expr := .app e33 e28; let e35 : Lean.Expr := .const (`Nat.lt_add_one) ([]); let e36 : Lean.Expr := .app e35 e8; let e37 : Lean.Expr := .app e34 e36; let e38 : Lean.Expr := .lam .anonymous e0 e37 (Lean.BinderInfo.default); let fact : Lean.TheoremVal := { name := `Nat.lt_add_one._simp_1, levelParams := [], type := e32, value := e38 }; if let some old := (← getEnv).toKernelEnv.find? fact.name then unless old == .thmInfo fact do throwError "conflicting Source auxiliary fact" else liftCoreM <| addDecl (.thmDecl fact)
+source_context "Controller.Basic.Assignments"
 namespace Controller
 abbrev Channel (n : ℕ) := Fin n
 abbrev Assignment (n : ℕ) := Channel n → Bool
 def assignmentOfSet {n : ℕ} (K : Finset (Channel n)) : Assignment n := fun i => decide (i ∈ K)
 def setOfAssignment {n : ℕ} (a : Assignment n) : Finset (Channel n) := Finset.univ.filter (fun i => a i = true)
 def FixedConsistent {n : ℕ} (T F : Finset (Channel n)) : Prop := Disjoint T F
-end Controller
-namespace Controller
+end Controller source_context "Controller.Basic.Sizes" namespace Controller
 structure DecoderSize where
   (channels : ℕ) (nodes : ℕ) (children : ℕ) (guards : ℕ) (roots : ℕ)
   deriving Repr, DecidableEq
@@ -63,10 +98,9 @@ structure NativeSize where
   (variableCount : ℕ) (clauses : ℕ) (literals : ℕ)
   deriving Repr, DecidableEq
 def NativeSize.total (s : NativeSize) : ℕ := s.variableCount + s.clauses + s.literals
-end Controller
-namespace Controller.Cost
-abbrev Word (width : Nat) := Fin (2 ^ width)
-def word (width value : Nat) : Word width := ⟨value % (2 ^ width), Nat.mod_lt _ (Nat.two_pow_pos width)⟩
+end Controller source_context "Controller.Cost.Model" namespace Controller.Cost
+abbrev Word (width : Nat) := Fin (@HPow.hPow.{0, 0, 0} Nat Nat Nat (@instHPow.{0, 0} Nat Nat (@instPowNat.{0} Nat instNatPowNat)) (@OfNat.ofNat.{0} Nat (nat_lit 2) (instOfNatNat (nat_lit 2))) width)
+def word (width value : Nat) : Word width := ⟨value % ((@HPow.hPow Nat Nat Nat (@instHPow Nat Nat (@instPowNat Nat instNatPowNat)) 2 width)), Nat.mod_lt _ (Nat.two_pow_pos width)⟩
 structure State (width registers : Nat) where
   (reg : Fin registers → Word width) (heap : Array (Word width)) (stack : List (Word width)) (output : List (Word width)) (pc : Word width) (halted : Bool)
 def State.liveWords (s : State width registers) : Nat := registers + s.heap.size + s.stack.length + s.output.length + 1
@@ -87,7 +121,7 @@ def step (instruction : Instruction width registers) (s : State width registers)
   | .store address src =>
       if h : (s.reg address).val < s.heap.size then some { next with heap := s.heap.set (s.reg address).val (s.reg src) } else none
   | .allocate src =>
-      if s.heap.size < 2 ^ width then some { next with heap := s.heap.push (s.reg src) }
+      if s.heap.size < (@HPow.hPow Nat Nat Nat (@instHPow Nat Nat (@instPowNat Nat instNatPowNat)) 2 width) then some { next with heap := s.heap.push (s.reg src) }
       else none
   | .release => if s.heap.isEmpty then none else some { next with heap := s.heap.pop }
   | .push src => some { next with stack := s.reg src :: s.stack }
@@ -105,8 +139,7 @@ def programStep (p : Program width registers) (s : State width registers) : Opti
 inductive Execution (p : Program width registers) :
   State width registers → State width registers → Nat → Nat → Prop where
   | refl (s) : Execution p s s 0 s.liveWords | cons {s middle final ticks peak} (transition : programStep p s = some middle) (rest : Execution p middle final ticks peak) : Execution p s final (ticks + 1) (max s.liveWords peak)
-end Controller.Cost
-namespace Controller.Decoder
+end Controller.Cost source_context "Controller.Decoder.Syntax" namespace Controller.Decoder
 inductive Gate (n available : ℕ) where
   | zero : Gate n available | input (channel : Channel n) : Gate n available | disj (children : List (Fin available)) : Gate n available | guard (child : Fin available) (labels : List (Channel n)) : Gate n available | liveAnd (left right : Fin available) : Gate n available
   deriving DecidableEq, Repr
@@ -125,14 +158,13 @@ variable {n : ℕ}
 def childIndex (graph : DAG n) (parent : Fin graph.nodeCount) (child : Fin parent.val) : Fin graph.nodeCount := ⟨child.val, Nat.lt_trans child.isLt parent.isLt⟩
 theorem childIndex_lt (graph : DAG n) (parent : Fin graph.nodeCount) (child : Fin parent.val) : (graph.childIndex parent child).val < parent.val := child.isLt
 def Guarded (graph : DAG n) : Prop := ∀ index, (graph.node index).IsGuarded
-def childIncidences (graph : DAG n) : ℕ := (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).children.length).sum
-def guardIncidences (graph : DAG n) : ℕ := (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).guardLabels.length).sum
+def childIncidences (graph : DAG n) : ℕ := @List.sum Nat instAddNat (@Zero.ofOfNat0 Nat (instOfNatNat (nat_lit 0))) (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).children.length)
+def guardIncidences (graph : DAG n) : ℕ := @List.sum Nat instAddNat (@Zero.ofOfNat0 Nat (instOfNatNat (nat_lit 0))) (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).guardLabels.length)
 def size (graph : DAG n) : DecoderSize where
   channels := n; nodes := graph.nodeCount; children := graph.childIncidences; guards := graph.guardIncidences; roots := graph.roots.length
 def countedSize (graph : DAG n) : ℕ := graph.size.total
 end DAG
-end Controller.Decoder
-namespace Controller.Decoder
+end Controller.Decoder source_context "Controller.Decoder.Eval" namespace Controller.Decoder
 namespace DAG
 variable {n : ℕ}
 def eval (graph : DAG n) (assignment : Assignment n) (index : Fin graph.nodeCount) : Bool :=
@@ -149,15 +181,13 @@ def evalPrefix (graph : DAG n) (assignment : Assignment n) :
       Fin.lastCases (gate.eval assignment earlier) earlier
 def evalTable (graph : DAG n) (assignment : Assignment n) : Fin graph.nodeCount → Bool := graph.evalPrefix assignment graph.nodeCount (Nat.le_refl graph.nodeCount)
 end DAG
-end Controller.Decoder
-namespace Controller.Cost
+end Controller.Decoder source_context "Controller.Cost.Decoder" namespace Controller.Cost
 def boolWord (width : Nat) (value : Bool) : Word width := word width (if value then 1 else 0)
-end Controller.Cost
-namespace Controller
+end Controller.Cost source_context "Controller.Basic.Admissible" namespace Controller
 def Admissible {n : ℕ} (b : ℕ) (t : Channel n) (K : Finset (Channel n)) : Prop := K.Nonempty ∧ (b = 1 → t ∈ K)
-end Controller
-namespace Controller.CNF
-abbrev OrderedFormula.Clause (α : Type u) := List (Std.Sat.Literal α)
+end Controller source_context "Controller.CNF.Basic" namespace Controller.CNF
+abbrev Literal (α : Type*) := Std.Sat.Literal α
+abbrev OrderedFormula.Clause (α : Type u) : Type u := List (Literal α)
 structure OrderedFormula (α : Type u) where
   (clauses : Array (OrderedFormula.Clause α))
 namespace OrderedFormula
@@ -170,18 +200,15 @@ def Clause.relabel (r : α → β) (c : Clause α) : Clause β := c.map (fun (i,
 def relabel (r : α → β) (f : OrderedFormula α) : OrderedFormula β := ⟨f.clauses.map (Clause.relabel r)⟩
 def toStd (f : OrderedFormula α) : Std.Sat.CNF α := ⟨f.clauses.map Std.Sat.CNF.Clause.ofLiterals⟩
 end OrderedFormula
-abbrev Literal (α : Type*) := Std.Sat.Literal α
 abbrev Clause (α : Type*) := Controller.CNF.OrderedFormula.Clause α
 abbrev Formula (α : Type*) := Controller.CNF.OrderedFormula α
 abbrev FiniteFormula (v : Nat) := Formula (Fin v)
 abbrev negate (l : Literal α) : Literal α := Std.Sat.Literal.negate l
 def ofClauses (cs : List (Clause α)) : Formula α := ⟨cs.toArray⟩
-end Controller.CNF
-namespace Controller.Horn
+end Controller.CNF source_context "Controller.Horn.GreatestModel" namespace Controller.Horn
 open CNF
 def forceFalse [DecidableEq α] (current : α → Bool) (i : α) : α → Bool := fun j => if j = i then false else current j
-end Controller.Horn
-namespace Controller.Decoder.ZeroSystem
+end Controller.Horn source_context "Controller.Decoder.ZeroSystem" namespace Controller.Decoder.ZeroSystem
 open CNF
 def positiveClause (entries : List α) : Clause α := entries.map (fun v => (v, true))
 def implicationClause (premise : α) (alternatives : List α) : Clause α := (premise, false) :: positiveClause alternatives
@@ -201,14 +228,17 @@ def falseUnitClauses (graph : DAG n) (F : Finset (Channel n)) : List (Clause gra
 def channelClauses (graph : DAG n) (b : ℕ) (target : Channel n) (T F : Finset (Channel n)) : List (Clause graph.ZeroVar) := (([positiveClause ((List.finRange n).map Sum.inl)] ++ (if b = 1 then [positiveClause [.inl target]] else [])) ++ graph.trueUnitClauses T) ++ graph.falseUnitClauses F
 def zeroSystem (graph : DAG n) (b : ℕ) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : Formula graph.ZeroVar := ofClauses ((graph.forwardClauses ++ graph.channelClauses b target T F) ++ [implicationClause (.inr root) []])
 def zeroChannelSet (graph : DAG n) (assignment : graph.ZeroVar → Bool) : Finset (Channel n) := setOfAssignment (fun channel => assignment (.inl channel))
-end Controller.Decoder.DAG
-namespace Controller.Horn.Worklist
+end Controller.Decoder.DAG source_context "Controller.Horn.Rules" namespace Controller.Horn.Worklist
 open CNF
 inductive Rule (α : Type*) where
   | skip | positive (positive : List α) | negative (head : α) (positive : List α)
   deriving DecidableEq, Repr
 namespace Rule
 def positives : Rule α → List α | .skip => [] | .positive labels => labels | .negative _ labels => labels
+def Holds (assignment : α → Bool) : Rule α → Prop
+  | .skip => True
+  | .positive labels => ∃ label ∈ labels, assignment label = true
+  | .negative head labels => assignment head = false ∨ ∃ label ∈ labels, assignment label = true
 end Rule
 variable [DecidableEq α]
 def signedLabels (clause : Clause α) (polarity : Bool) : List α := ((clause.filter fun literal => decide (literal.2 = polarity)).map Prod.fst).dedup
@@ -217,10 +247,10 @@ def compileClause (clause : Clause α) : Rule α := if tautologyCheck clause the
 def compileFormula (formula : Formula α) : Array (Rule α) := formula.clauses.map compileClause
 @[simp] theorem compileFormula_size (formula : Formula α) :
     (compileFormula formula).size = formula.clauses.size := by simp [compileFormula]
-end Controller.Horn.Worklist
-namespace Controller.Horn.Worklist
+end Controller.Horn.Worklist source_context "Controller.Horn.IndexedState" namespace Controller.Horn.Worklist
 abbrev RuleTable (n m : Nat) := Vector (Rule (Fin n)) m
 def normalizedTable (formula : CNF.Formula (Fin n)) : RuleTable n formula.clauses.size := ⟨compileFormula formula, compileFormula_size formula⟩
+def Normalized (rules : RuleTable n m) : Prop := ∀ row : Fin m, (rules[row.val]).positives.Nodup
 def positiveIncidences (rules : RuleTable n m) : List (Fin n × Fin m) := (List.finRange m).flatMap fun row => (rules[row.val]).positives.map fun label => (label, row)
 def bucketIncidences : List (Fin n × Fin m) → Vector (List (Fin m)) n
   | [] => Vector.replicate n []
@@ -259,8 +289,8 @@ def turnOff (index : Vector (List (Fin m)) n) (state : CountedState n m) (label 
       fun same => equal (Fin.ext same.symm)
     simp [equal, unequalValues]
 end CountedState
-end Controller.Horn.Worklist
-namespace Controller.Horn.Worklist
+end Controller.Horn.Worklist source_context "Controller.Horn.Worklist" namespace Controller.Horn.Worklist
+def Models (rules : RuleTable n m) (assignment : Fin n → Bool) : Prop := ∀ row : Fin m, (rules[row.val]).Holds assignment
 structure Agenda (m : Nat) where
   (fired : Vector Bool m) (pending : List (Fin m)) (failed : Bool)
 namespace Agenda
@@ -312,32 +342,27 @@ decreasing_by
   all_goals first
     | exact Prod.Lex.left _ _ (propagate_remaining_lt rules index state head rest wasTrue)
     | apply Prod.Lex.right
-      simp [discard, pendingEquation]
+      simp only [discard, pendingEquation, List.length_cons, Nat.lt_add_one._simp_1]
 end State
 def solveRules (rules : RuleTable n m) : Option (Vector Bool n) :=
   let index := occurrences rules
   State.run rules index (State.initial rules)
-end Controller.Horn.Worklist
-namespace Controller.Horn.Worklist
+end Controller.Horn.Worklist source_context "Controller.Horn.WorklistCorrect" namespace Controller.Horn.Worklist
 open CNF
 def solveFormula (formula : Formula (Fin n)) : Option (Vector Bool n) := solveRules (normalizedTable formula)
-end Controller.Horn.Worklist
-namespace Controller.CNF
+end Controller.Horn.Worklist source_context "Controller.CNF.Relabel" namespace Controller.CNF
 abbrev relabel (r : α → β) (f : Formula α) : Formula β := Controller.CNF.OrderedFormula.relabel r f
-end Controller.CNF
-namespace Controller.Decoder
+end Controller.CNF source_context "Controller.Decoder.Detect" namespace Controller.Decoder
 namespace DAG
 def zeroIndex (graph : DAG n) : graph.ZeroVar ≃ Fin (n + graph.nodeCount) := finSumFinEquiv
 def finiteZeroSystem (graph : DAG n) (b : Nat) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : CNF.FiniteFormula (n + graph.nodeCount) := CNF.relabel graph.zeroIndex (graph.zeroSystem b target root T F)
 def solveZero (graph : DAG n) (b : Nat) (target : Channel n) (root : Fin graph.nodeCount) (T F : Finset (Channel n)) : Option (Finset (Channel n)) := (Horn.Worklist.solveFormula (graph.finiteZeroSystem b target root T F)).map (fun values => graph.zeroChannelSet (fun coordinate => values[(graph.zeroIndex coordinate).val]))
 def firstSuccess (query : α → Option β) : List α → Option β | [] => none | head :: tail => match query head with | some value => some value | none => firstSuccess query tail
 end DAG
-end Controller.Decoder
-namespace Controller.Cost.ForestCursorMaterialize
+end Controller.Decoder source_context "Controller.Cost.ForestCursorMaterialize" namespace Controller.Cost.ForestCursorMaterialize
 open Controller.Decoder Controller.Decoder.DAG
 def allocatedHeap (width : ℕ) (heap : Array (Word width)) (values : List ℕ) : Array (Word width) := heap ++ (values.map (word width)).toArray
-end Controller.Cost.ForestCursorMaterialize
-namespace Controller.Cost.ForestIndexedOperands
+end Controller.Cost.ForestCursorMaterialize source_context "Controller.Cost.ForestIndexedOperands" namespace Controller.Cost.ForestIndexedOperands
 open Controller.Decoder Controller.Decoder.DAG
 def countSource (items : List α) (before : ℕ) : ℕ := match items with | [] => before | _ :: rest => countSource rest (before + 1)
 structure Row where
@@ -361,18 +386,15 @@ def serializedRows (heapOffset : ℕ) (rows : List Row) (roots : List ℕ) : Lis
 def cacheHeap (width : ℕ) (heap : Array (Word width)) (rows : List Row) (roots : List ℕ) : Array (Word width) := Controller.Cost.ForestCursorMaterialize.allocatedHeap width heap (serializedRows heap.size rows roots)
 def RootsMatch (graph : DAG n) (roots : List ℕ) : Prop := roots = graph.roots.map Fin.val
 def globalHeader (channels : ℕ) (rows : List Row) (roots : List ℕ) : List ℕ := [channels, countSource rows 0, countSource (rowChildren rows) 0, countSource (rowGuards rows) 0, countSource roots 0]
-end Controller.Cost.ForestIndexedOperands
-namespace Controller.Cost.ForestInputStored
+end Controller.Cost.ForestIndexedOperands source_context "Controller.Cost.ForestInputStored" namespace Controller.Cost.ForestInputStored
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands
 def withValues (heap : Array (Word width)) (values : Fin m → Bool) : Array (Word width) := heap ++ (List.ofFn (fun id => boolWord width (values id))).toArray
-end Controller.Cost.ForestInputStored
-namespace Controller.Cost.ForestInputPrefixStored
+end Controller.Cost.ForestInputStored source_context "Controller.Cost.ForestInputPrefixStored" namespace Controller.Cost.ForestInputPrefixStored
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.ForestInputStored
 def channelHeap (heap : Array (Word width)) (rows : List Row) (roots : List ℕ) (channels : Channel n → Bool) : Array (Word width) := withValues (cacheHeap width heap rows roots) channels
-end Controller.Cost.ForestInputPrefixStored
-namespace Controller.Cost.UniformDAGSource
+end Controller.Cost.ForestInputPrefixStored source_context "Controller.Cost.UniformDAGSource" namespace Controller.Cost.UniformDAGSource
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.ForestInputStored
 open Controller.Cost.ForestInputPrefixStored
@@ -382,14 +404,12 @@ structure HeadsMatch (graph : DAG n) (rows : List Row)
   head : ∀ node : Fin graph.nodeCount,
     (rows[node.val]'(by rw [matched.length_eq]; exact node.isLt)).head =
       typedHead (graph.node node)
-end Controller.Cost.UniformDAGSource
-namespace Controller.Cost.UniformDAGRun
+end Controller.Cost.UniformDAGSource source_context "Controller.Cost.UniformDAGRun" namespace Controller.Cost.UniformDAGRun
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.ForestInputPrefixStored
 open Controller.Cost.UniformDAGSource
 def packetHeaderHeap (width channels : ℕ) (rows : List Row) (roots : List ℕ) : Array (Word width) := ((globalHeader channels rows roots).map (word width)).toArray
-end Controller.Cost.UniformDAGRun
-namespace Controller.Decoder
+end Controller.Cost.UniformDAGRun source_context "Controller.Decoder.Extend" namespace Controller.Decoder
 variable {n : ℕ}
 instance fixedConsistentDecidable (T F : Finset (Channel n)) : Decidable (FixedConsistent T F) := Finset.decidableDisjoint T F
 def extensionBase (b : ℕ) (target : Channel n) (T : Finset (Channel n)) : Finset (Channel n) := if b = 1 then insert target T else T
@@ -412,25 +432,26 @@ def extendSet (graph : DAG n) (b : ℕ) (target : Channel n) (drive : Bool) (T F
     else none
   else none
 end DAG
-end Controller.Decoder
-namespace Controller.CNF
+end Controller.Decoder source_context "Controller.CNF.Gates" namespace Controller.CNF
 inductive Gate (α : Type*) where
   | and (inputs : List (Literal α)) | or (inputs : List (Literal α)) | xor (left right : Literal α) | alias (input : Literal α) | not (input : Literal α) | constant (value : Bool)
   deriving DecidableEq, Repr
 namespace Gate
+def inputs : Gate α → List (Literal α)
+  | .and ls | .or ls => ls
+  | .xor l r => [l, r]
+  | .alias l | .not l => [l]
+  | .constant _ => []
 def clauses (out : Literal α) : Gate α → List (Clause α) | .and ls => ls.map (fun l => [negate out, l]) ++ [out :: ls.map negate] | .or ls => ls.map (fun l => [out, negate l]) ++ [negate out :: ls] | .xor l r => [[l, r, negate out], [negate l, negate r, negate out], [l, negate r, out], [negate l, r, out]] | .alias l => [[negate out, l], [out, negate l]] | .not l => [[out, l], [negate out, negate l]] | .constant b => [[if b then out else negate out]]
 def relabel (r : α → β) : Gate α → Gate β | .and ls => .and (ls.map (fun l => (r l.1, l.2))) | .or ls => .or (ls.map (fun l => (r l.1, l.2))) | .xor l k => .xor (r l.1, l.2) (r k.1, k.2) | .alias l => .alias (r l.1, l.2) | .not l => .not (r l.1, l.2) | .constant b => .constant b
 end Gate
-end Controller.CNF
-namespace Controller.CNF
+end Controller.CNF source_context "Controller.CNF.Tseitin" namespace Controller.CNF
 inductive AcyclicCircuit (r : Nat) : Nat → Type where
   | roots : AcyclicCircuit r r | snoc {v : Nat} (previous : AcyclicCircuit r v) (gate : Gate (Fin v)) (phase : Bool) : AcyclicCircuit r (v + 1)
-end Controller.CNF
-namespace Controller.Cost.NativeCircuitSize
+end Controller.CNF source_context "Controller.Cost.NativeCircuitSize" namespace Controller.Cost.NativeCircuitSize
 open Controller.CNF
-def literalCount (formula : Formula α) : Nat := (formula.clauses.toList.map List.length).sum
-end Controller.Cost.NativeCircuitSize
-namespace Controller.Physical
+def literalCount.{u_1} {α : Type u_1} (formula : Controller.CNF.Formula.{u_1} α) : Nat := @List.sum.{0} Nat instAddNat (@AddZero.toZero.{0} Nat (@AddZeroClass.toAddZero.{0} Nat (@AddMonoid.toAddZeroClass.{0} Nat Nat.instAddMonoid))) (@List.map.{u_1, 0} (List.{u_1} (Controller.CNF.Literal.{u_1} α)) Nat (@List.length.{u_1} (Controller.CNF.Literal.{u_1} α)) (@Array.toList.{u_1} (Controller.CNF.OrderedFormula.Clause.{u_1} α) (@Controller.CNF.OrderedFormula.clauses.{u_1} α formula)))
+end Controller.Cost.NativeCircuitSize source_context "Controller.Physical.Controller" namespace Controller.Physical
 structure PrimaryInput (n b : ℕ) where
   (positiveBuses : 0 < b) (enable : Assignment n) (request : Fin b → Assignment n)
 def PrimaryInput.firstBus {n b : ℕ} (input : PrimaryInput n b) : Fin b := ⟨0, input.positiveBuses⟩
@@ -464,8 +485,7 @@ def runFromFirst {n b : ℕ} (input : PrimaryInput n b) (first : Bool) : Selecto
 def healthyQualifiers {n b : ℕ} (input : PrimaryInput n b) : Assignment n := qualifiers input.enable input.request (healthyRun input).flags
 def qualifiersFromFirst {n b : ℕ} (input : PrimaryInput n b) (first : Bool) : Assignment n := qualifiers input.enable input.request (runFromFirst input first).flags
 def ObservationsDiffer {n q : ℕ} (outputs : Fin q → Assignment n → Bool) (healthy faulty : Assignment n) : Prop := ∃ k, outputs k healthy ≠ outputs k faulty
-end Controller.Physical
-namespace Controller.Physical
+end Controller.Physical source_context "Controller.Physical.Faults" namespace Controller.Physical
 structure Bridge (n : ℕ) where
   (target : Channel n) (drivers : Finset (Channel n)) (drivers_nonempty : drivers.Nonempty) (target_not_mem : target ∉ drivers)
 def Bridge.remaining {n : ℕ} (bridge : Bridge n) : Finset (Channel n) := Finset.univ \ insert bridge.target bridge.drivers
@@ -477,8 +497,7 @@ def BridgeInterfaceSatisfied {n b : ℕ} (bridge : Bridge n) (input : PrimaryInp
 def bridgeFirstFlag {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) (wire : Bool) : Bool := !(wire && bridgeD bridge input && bridgeR bridge input)
 def bridgeQualifiers {n b : ℕ} (bridge : Bridge n) (input : PrimaryInput n b) (wire : Bool) : Assignment n := qualifiersFromFirst input (bridgeFirstFlag bridge input wire)
 def BridgeInputDetects {n b q : ℕ} (bridge : Bridge n) (drive : Bool) (outputs : Fin q → Assignment n → Bool) (input : PrimaryInput n b) (wire : Bool) : Prop := BridgeInterfaceSatisfied bridge input drive wire ∧ ObservationsDiffer outputs (healthyQualifiers input) (bridgeQualifiers bridge input wire)
-end Controller.Physical
-namespace Controller.Native
+end Controller.Physical source_context "Controller.Native.Encode" namespace Controller.Native
 inductive Side where
   | healthy | faulty
   deriving DecidableEq, Repr
@@ -507,8 +526,7 @@ def primaryAssignment {n b : ℕ} (input : Physical.PrimaryInput n b) (wire : Bo
   | .request bus channel => input.request bus channel
   | .wire => wire
 end Parameters
-end Controller.Native
-namespace Controller.Native.Bounded
+end Controller.Native source_context "Controller.Native.BoundedEncode" namespace Controller.Native.Bounded
 inductive Junction where
   | conjunction | disjunction
   deriving DecidableEq, Repr
@@ -518,6 +536,9 @@ structure Producer (α : Type*) where
   deriving DecidableEq, Repr
 def Producer.rows (producer : Producer α) : List (CNF.Clause α) := producer.gate.clauses producer.output
 end Controller.Native.Bounded
+source_context "Controller.Native.LayoutTransport"
+section
+attribute [local instance 2000] Nat.instPartialOrder
 namespace Controller.Native.InterfaceAlias
 inductive Root (n b : ℕ) where
   | enable (channel : Fin n) | request (bus : Fin b) (channel : Fin n)
@@ -551,8 +572,34 @@ def pairLayer (junction : Bounded.Junction) (lastID : ℕ) : List (CNF.Literal �
       ⟨(lastID + 1, true) :: rest.handles, ⟨(lastID + 1, true), junction.gate [left, right]⟩ :: rest.producers, rest.nextID⟩
 theorem pairLayer_length (junction : Bounded.Junction) (lastID : ℕ) (inputs : List (CNF.Literal ℕ)) : (pairLayer junction lastID inputs).handles.length = (inputs.length + 1) / 2 := by
   induction inputs using List.twoStepInduction generalizing lastID with
-  | nil => simp [pairLayer]
-  | singleton input => simp [pairLayer]
+  | nil => simp (disch := source_exact (@of_eq_true
+  (@LT.lt.{0} Nat (@Preorder.toLT.{0} Nat (@PartialOrder.toPreorder.{0} Nat Nat.instPartialOrder))
+    (@OfNat.ofNat.{0} Nat (nat_lit 0)
+      (@Zero.toOfNat0.{0} Nat
+        (@AddZero.toZero.{0} Nat
+          (@AddZeroClass.toAddZero.{0} Nat
+            (@AddMonoid.toAddZeroClass.{0} Nat (@AddMonoidWithOne.toAddMonoid.{0} Nat Nat.instAddMonoidWithOne))))))
+    (@OfNat.ofNat.{0} Nat (nat_lit 2)
+      (@instOfNatAtLeastTwo.{0} Nat (nat_lit 2) (@AddMonoidWithOne.toNatCast.{0} Nat Nat.instAddMonoidWithOne)
+        (@Nat.instAtLeastTwoHAddOfNat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))
+          (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))
+  (@zero_lt_two._simp_1.{0} Nat Nat.instAddMonoidWithOne Nat.instPartialOrder Nat.instZeroLEOneClass
+    (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+    (@IsOrderedAddMonoid.toAddLeftMono.{0} Nat Nat.instAddCommMonoid Nat.instPreorder Nat.instIsOrderedAddMonoid)))) [pairLayer]
+  | singleton input => simp (disch := source_exact (@of_eq_true
+  (@LT.lt.{0} Nat (@Preorder.toLT.{0} Nat (@PartialOrder.toPreorder.{0} Nat Nat.instPartialOrder))
+    (@OfNat.ofNat.{0} Nat (nat_lit 0)
+      (@Zero.toOfNat0.{0} Nat
+        (@AddZero.toZero.{0} Nat
+          (@AddZeroClass.toAddZero.{0} Nat
+            (@AddMonoid.toAddZeroClass.{0} Nat (@AddMonoidWithOne.toAddMonoid.{0} Nat Nat.instAddMonoidWithOne))))))
+    (@OfNat.ofNat.{0} Nat (nat_lit 2)
+      (@instOfNatAtLeastTwo.{0} Nat (nat_lit 2) (@AddMonoidWithOne.toNatCast.{0} Nat Nat.instAddMonoidWithOne)
+        (@Nat.instAtLeastTwoHAddOfNat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))
+          (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))
+  (@zero_lt_two._simp_1.{0} Nat Nat.instAddMonoidWithOne Nat.instPartialOrder Nat.instZeroLEOneClass
+    (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+    (@IsOrderedAddMonoid.toAddLeftMono.{0} Nat Nat.instAddCommMonoid Nat.instPreorder Nat.instIsOrderedAddMonoid)))) [pairLayer]
   | cons_cons left right tail inductionHypothesis _ =>
       simp only [pairLayer, List.length_cons, inductionHypothesis]
       omega
@@ -719,7 +766,7 @@ def Cursor.toState (cursor : Cursor parameters) : SourceSerialFold.State (Source
     (by have positive := parameters.bridge.target.isLt; unfold SourceInitialIDs.rootCount; omega)
     .roots).execute (cursor.entries.map Entry.producer)
 end Controller.Native.SourceController
-namespace Controller.Physical
+end source_context "Controller.Physical.Realize" namespace Controller.Physical
 def realizeTailRequests {n : ℕ} (target : Channel n) (K : Finset (Channel n)) :
     (b : ℕ) → Fin b → Assignment n
   | 0 => Fin.elim0
@@ -731,26 +778,22 @@ def realizeRequests {n : ℕ} (target : Channel n) (K : Finset (Channel n)) :
   | b + 1 => Fin.cases (assignmentOfSet {target}) (realizeTailRequests target K b)
 def realizeBridge {n b : ℕ} (bridge : Bridge n) (hb : 0 < b) (K : Finset (Channel n)) : PrimaryInput n b where
   positiveBuses := hb; enable := assignmentOfSet (insert bridge.target K); request := realizeRequests bridge.target K b
-end Controller.Physical
-namespace Controller.Cost.NativeSourceExecution
+end Controller.Physical source_context "Controller.Cost.NativeSourceExecution" namespace Controller.Cost.NativeSourceExecution
 open Controller.CNF Controller.Native Controller.Native.SourceController
 def selectedSize (parameters : Parameters) : NativeSize where
   variableCount := (compile parameters).toState.count; clauses := (formula parameters).clauses.size; literals := NativeCircuitSize.literalCount (formula parameters)
-end Controller.Cost.NativeSourceExecution
-namespace Controller.Cost.SharedRetainedCandidates
+end Controller.Cost.NativeSourceExecution source_context "Controller.Cost.SharedRetainedCandidates" namespace Controller.Cost.SharedRetainedCandidates
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.UniformDAGSource
 open Controller.Cost.UniformDAGRun Controller.Cost.ForestInputPrefixStored
 open Controller.Cost.ForestInputStored
 def masks (width : Nat) (baseline : Assignment n) (flags : List Bool) : List (Word width) := (List.finRange n).map (fun channel => boolWord width (baseline channel)) ++ flags.map (boolWord width)
-end Controller.Cost.SharedRetainedCandidates
-namespace Controller.Cost.SharedMachineCapacity
+end Controller.Cost.SharedRetainedCandidates source_context "Controller.Cost.SharedMachineCapacity" namespace Controller.Cost.SharedMachineCapacity
 open Controller.Native Controller.Native.SourceController
 open Controller.Cost.NativeSourceExecution
 open Controller.Decoder
 def wordWidth (retained graphSize nativeSize : Nat) : Nat := Nat.log2 (retained + graphSize + nativeSize + 1) + 18
-end Controller.Cost.SharedMachineCapacity
-namespace Controller.Cost.SharedDetectorPrepared
+end Controller.Cost.SharedMachineCapacity source_context "Controller.Cost.SharedDetectorPrepared" namespace Controller.Cost.SharedDetectorPrepared
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.UniformDAGSource
 open Controller.Cost.UniformDAGRun Controller.Cost.ForestInputPrefixStored Controller.Cost.ForestInputStored
@@ -761,14 +804,12 @@ def rootBase (graph : DAG n) : Nat := 5 + 6 * graph.nodeCount + graph.childIncid
 def maskBase (graph : DAG n) : Nat := rootBase graph + graph.roots.length
 def packetSize (graph : DAG n) : Nat := maskBase graph + n
 end Layout
-end Controller.Cost.SharedDetectorPrepared
-namespace Controller.Cost.EnumerationUniformScan
+end Controller.Cost.SharedDetectorPrepared source_context "Controller.Cost.EnumerationUniformScan" namespace Controller.Cost.EnumerationUniformScan
 open Controller.Native Controller.Native.SourceController Controller.Decoder
 open Controller.Cost.NativeSourceExecution
 variable {trueBase falseBase : Nat}
 abbrev Width (parameters : Parameters) (graph : DAG parameters.channels) (retained : Nat) := SharedMachineCapacity.wordWidth retained graph.countedSize (selectedSize parameters).total
-end Controller.Cost.EnumerationUniformScan
-namespace Controller.Decoder
+end Controller.Cost.EnumerationUniformScan source_context "Controller.Decoder.Enumerate" namespace Controller.Decoder
 namespace Enumeration
 def Before (first second : Finset (Channel n)) : Prop := ∃ channel : Channel n, channel ∉ first ∧ channel ∈ second ∧ ∀ earlier : Channel n, earlier.val < channel.val → (earlier ∈ first ↔ earlier ∈ second)
 def fixedTrue (depth : ℕ) (partialSet : Finset (Channel n)) : Finset (Channel n) := partialSet.filter (fun channel => channel.val < depth)
@@ -812,6 +853,9 @@ inductive State (n : ℕ) where
   | initial | after (previous : Finset (Channel n)) | exhausted
 structure NextResult (n : ℕ) where
   (output : Option (Finset (Channel n))) (continuation : State n) (tests : ℕ)
+def Least (predicate : Finset (Channel n) → Prop) : Option (Finset (Channel n)) → Prop
+  | none => ¬∃ K, predicate K
+  | some result => predicate result ∧ ∀ K, predicate K → result = K ∨ Before result K
 def next (graph : DAG n) (busCount : ℕ) (target : Channel n) (drive : Bool) (state : State n) : NextResult n :=
   let result : SearchResult n := match state with
     | .initial => if query graph busCount target drive 0 ∅ then
@@ -830,23 +874,21 @@ def trace (graph : DAG n) (busCount : ℕ) (target : Channel n) (drive : Bool) :
     | some K => K :: trace graph busCount target drive fuel result.continuation
 def observations (graph : DAG n) : Fin graph.roots.length → Assignment n → Bool := fun output a => graph.eval a (graph.roots.get output)
 end Enumeration
-end Controller.Decoder
-namespace Controller.Cost.EnumerationMasks
+end Controller.Decoder source_context "Controller.Cost.EnumerationMasks" namespace Controller.Cost.EnumerationMasks
 open Controller.Decoder Controller.Decoder.Enumeration
 variable {n : ℕ}
 def masksOf (width : Nat) (B F : Finset (Channel n)) : List (Word width) := SharedRetainedCandidates.masks width (assignmentOfSet B) ((List.finRange n).map (assignmentOfSet F))
 def maskList (width b : Nat) (t : Channel n) (d : Nat) (P : Finset (Channel n)) : List (Word width) := masksOf width (extensionBase b t (fixedTrue d P)) (fixedFalse d P)
-end Controller.Cost.EnumerationMasks
-namespace Controller.Cost.EnumerationStreamEmit
+end Controller.Cost.EnumerationMasks source_context "Controller.Cost.EnumerationStreamEmit" namespace Controller.Cost.EnumerationStreamEmit
 def workingWords (state : State width 8) : Nat := 9 + state.heap.size + state.stack.length
-end Controller.Cost.EnumerationStreamEmit
-namespace Controller.Cost.EnumerationCanonicalEmit
+end Controller.Cost.EnumerationStreamEmit source_context "Controller.Cost.EnumerationCanonicalEmit" namespace Controller.Cost.EnumerationCanonicalEmit
 open Controller.Decoder Controller.Native Controller.Native.Parameters Controller.Physical
 abbrev Coordinates (parameters : Parameters) : Nat := parameters.channels + parameters.buses * parameters.channels + 1
 noncomputable def code : Controller.Native.Parameters → (width : ℕ) → ℕ → ℕ → List.{0} (Controller.Cost.Instruction width 8) := by sorry
 def words (parameters : Parameters) (width : Nat) (K : Finset (Channel parameters.channels)) : List (Word width) := parameters.primaryRoles.map (fun role => boolWord width (primaryAssignment (realizeBridge parameters.bridge parameters.positiveBuses K) true role))
-end Controller.Cost.EnumerationCanonicalEmit
-namespace Controller.Cost.EnumerationPrefixOracle
+open Lean Elab Command in
+run_cmd modifyEnv (fun env => Lean.setDefHeightOverride env `Controller.Cost.EnumerationCanonicalEmit.code 14)
+end Controller.Cost.EnumerationCanonicalEmit source_context "Controller.Cost.EnumerationPrefixOracle" namespace Controller.Cost.EnumerationPrefixOracle
 open Controller.Decoder Controller.Decoder.DAG
 open Controller.Cost.ForestIndexedOperands Controller.Cost.UniformDAGSource Controller.Cost.UniformDAGRun
 open Controller.Cost.ForestInputPrefixStored Controller.Cost.ForestInputStored
@@ -855,8 +897,7 @@ abbrev Width (parameters : Parameters) (graph : DAG parameters.channels) (retain
 def packet (parameters : Parameters) (width : Nat) (rows : List Row) (roots : List Nat) : Array (Word width) :=
   channelHeap (packetHeaderHeap width parameters.channels rows roots) rows roots
     (assignmentOfSet {parameters.bridge.target})
-end Controller.Cost.EnumerationPrefixOracle
-namespace Controller.Cost.EnumerationDriverCode
+end Controller.Cost.EnumerationPrefixOracle source_context "Controller.Cost.EnumerationDriverCode" namespace Controller.Cost.EnumerationDriverCode
 open Controller.Decoder Controller.Native
 structure Labels where
   (start : Nat) (call : Nat) (restore : Nat) (dispatch : Nat) (seekPost : Nat) (seekFail : Nat) (initialPost : Nat) (completePost : Nat) (completeRepair : Nat) (descend : Nat) (forcedDescend : Nat) (seek : Nat) (seekForced : Nat) (seekTry : Nat) (emit : Nat) (halt : Nat) (oracle : Nat)
@@ -878,53 +919,45 @@ def labels (parameters : Parameters) (graph : DAG parameters.channels) (width en
   let emit := seekTry + 11
   let halt := emit + emitLength parameters graph width + 2
   { start := entry, call, restore, dispatch, seekPost, seekFail, initialPost, completePost, completeRepair, descend, forcedDescend, seek, seekForced, seekTry, emit, halt, oracle := halt + 1 }
-end Controller.Cost.EnumerationDriverCode
-namespace Controller.Cost.EnumerationDriverPrefix
+end Controller.Cost.EnumerationDriverCode source_context "Controller.Cost.EnumerationDriverPrefix" namespace Controller.Cost.EnumerationDriverPrefix
 open Controller.Decoder Controller.Decoder.Enumeration Controller.Native
 structure Ready (parameters : Parameters) (packet : Array (Word width))
   (depth cursor : Nat) (partialSet : Finset (Fin parameters.channels)) (state : State width 8) : Prop where
   (heap : state.heap = packet ++ (EnumerationMasks.maskList width parameters.buses parameters.bridge.target depth partialSet).toArray) (counter : state.reg 3 = word width cursor) (stack : state.stack = []) (running : state.halted = false)
-end Controller.Cost.EnumerationDriverPrefix
-namespace Controller.Cost.EnumerationDriverQuery
+end Controller.Cost.EnumerationDriverPrefix source_context "Controller.Cost.EnumerationDriverQuery" namespace Controller.Cost.EnumerationDriverQuery
 open Controller.Decoder Controller.Decoder.Enumeration Controller.Native
 open Controller.Cost.EnumerationDriverPrefix
 abbrev budget (parameters : Parameters) (graph : DAG parameters.channels) : Nat := 24 * parameters.channels + 16 + (parameters.channels + graph.roots.length + 1) * (8000 * (graph.countedSize + 1))
-end Controller.Cost.EnumerationDriverQuery
-namespace Controller.Cost.EnumerationWorkingTrace
+end Controller.Cost.EnumerationDriverQuery source_context "Controller.Cost.EnumerationWorkingTrace" namespace Controller.Cost.EnumerationWorkingTrace
 open Controller.Cost.EnumerationStreamEmit
 inductive WorkingExecution (program : Program width 8) :
   State width 8 → State width 8 → Nat → Nat → Prop where
   | refl (state) : WorkingExecution program state state 0 (workingWords state) | cons {state middle final ticks peak} (transition : programStep program state = some middle) (rest : WorkingExecution program middle final ticks peak) : WorkingExecution program state final (ticks + 1) (max (workingWords state) peak)
-end Controller.Cost.EnumerationWorkingTrace
-namespace Controller.Cost.EnumerationDriverCapacity
+end Controller.Cost.EnumerationWorkingTrace source_context "Controller.Cost.EnumerationDriverCapacity" namespace Controller.Cost.EnumerationDriverCapacity
 open Controller.Decoder Controller.Native Controller.Native.SourceController
 open Controller.Cost.NativeSourceExecution
 open Controller.Cost.EnumerationDriverQuery
 def retained (parameters : Parameters) (graph : DAG parameters.channels) : Nat := 10000 * (graph.countedSize + EnumerationCanonicalEmit.Coordinates parameters + 1)
 abbrev Width (parameters : Parameters) (graph : DAG parameters.channels) : Nat := EnumerationPrefixOracle.Width parameters graph (retained parameters graph)
-end Controller.Cost.EnumerationDriverCapacity
-namespace Controller.Cost.EnumerationDriverStart
+end Controller.Cost.EnumerationDriverCapacity source_context "Controller.Cost.EnumerationDriverStart" namespace Controller.Cost.EnumerationDriverStart
 open Controller.Decoder Controller.Decoder.Enumeration Controller.Native
 open Controller.Cost.EnumerationDriverPrefix Controller.Cost.EnumerationDriverQuery
 def Endpoint (parameters : Parameters) (packet : Array (Word width)) (emit : Nat) (result : Option (Finset (Fin parameters.channels))) (state : State width 8) : Prop := match result with | none => state.halted = true | some K => Ready parameters packet parameters.channels parameters.channels K state ∧ state.pc = word width emit
-end Controller.Cost.EnumerationDriverStart
-namespace Controller.Cost.EnumerationDriverNext
+end Controller.Cost.EnumerationDriverStart source_context "Controller.Cost.EnumerationDriverNext" namespace Controller.Cost.EnumerationDriverNext
 open Controller.Decoder Controller.Decoder.Enumeration Controller.Native
 open Controller.Cost.EnumerationDriverPrefix Controller.Cost.EnumerationDriverQuery
 open Controller.Cost.EnumerationStreamEmit Controller.Cost.EnumerationWorkingTrace
 def delay (parameters : Parameters) (graph : DAG parameters.channels) : Nat := (2 * parameters.channels + 1) * (budget parameters graph + 100)
 def space (graph : DAG n) : Nat := 258 * (graph.countedSize + 1)
 def Runtime (parameters : Parameters) (graph : DAG parameters.channels) (packet : Array (Word width)) (start seek : Nat) : Enumeration.State parameters.channels → State width 8 → Prop | .initial, state => state.heap = packet ∧ state.stack = [] ∧ state.halted = false ∧ state.pc = word width start | .after previous, state => Ready parameters packet parameters.channels parameters.channels previous state ∧ state.pc = word width seek ∧ Detecting graph parameters.buses parameters.bridge.target parameters.drive previous | .exhausted, state => state.halted = true ∧ workingWords state ≤ space graph
-end Controller.Cost.EnumerationDriverNext
-namespace Controller.Cost.EnumerationDriverStream
+end Controller.Cost.EnumerationDriverNext source_context "Controller.Cost.EnumerationDriverStream" namespace Controller.Cost.EnumerationDriverStream
 open Controller.Decoder Controller.Decoder.Enumeration Controller.Native
 open Controller.Cost.EnumerationDriverPrefix Controller.Cost.EnumerationDriverQuery
 open Controller.Cost.EnumerationStreamEmit Controller.Cost.EnumerationWorkingTrace
 open Controller.Cost.EnumerationDriverNext
 def words (parameters : Parameters) (width : Nat) (results : List (Finset (Fin parameters.channels))) : List (Word width) := results.flatMap (EnumerationCanonicalEmit.words parameters width)
 def emitBudget (parameters : Parameters) : Nat := 5 + 4 * EnumerationCanonicalEmit.Coordinates parameters
-end Controller.Cost.EnumerationDriverStream
-namespace Controller.Cost.Enumeration
+end Controller.Cost.EnumerationDriverStream source_context "Controller.Cost.Enumeration" namespace Controller.Cost.Enumeration
 open Controller.Decoder Controller.Native
 open Controller.Cost.EnumerationStreamEmit Controller.Cost.EnumerationWorkingTrace
 abbrev Width (parameters : Parameters) (graph : DAG parameters.channels) := EnumerationDriverCapacity.Width parameters graph
@@ -945,3 +978,5 @@ theorem execution (parameters : Parameters) (graph : DAG parameters.channels) (g
 /-- iterator delay: Canonical enumeration, termination and streaming delay. -/
 theorem iterator_delay (parameters : Parameters) (graph : DAG parameters.channels) (guarded : graph.Guarded) (rows : List ForestIndexedOperands.Row) (roots : List Nat) (matched : ForestIndexedOperands.RowsMatch graph rows) (heads : UniformDAGSource.HeadsMatch graph rows matched) (rootMatches : ForestIndexedOperands.RootsMatch graph roots) (logical : Decoder.Enumeration.State parameters.channels) (state : State (Width parameters graph) 8) (runtime : EnumerationDriverNext.Runtime parameters graph (EnumerationPrefixOracle.packet parameters (Width parameters graph) rows roots) 0 (EnumerationDriverCode.labels parameters graph (Width parameters graph) 0).seek logical state) : ∃ final ticks peak, WorkingExecution (program parameters graph rows roots) state final ticks peak ∧ ticks ≤ 100000 * parameters.channels * (parameters.channels + graph.roots.length) * graph.countedSize ∧ peak ≤ 258 * (graph.countedSize + 1) ∧ final.output = state.output ∧ EnumerationDriverStart.Endpoint parameters (EnumerationPrefixOracle.packet parameters (Width parameters graph) rows roots) (EnumerationDriverCode.labels parameters graph (Width parameters graph) 0).emit (Decoder.Enumeration.next graph parameters.buses parameters.bridge.target parameters.drive logical).output final := by sorry
 end Controller.Cost.Enumeration
+
+end_source_context

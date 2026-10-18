@@ -1,4 +1,9 @@
 module
+public meta import Lean.Elab.Command
+public meta import Lean.Meta.Match.Match
+meta import all Lean.Meta.Match.Match
+public meta import Lean.Meta.Tactic.AuxLemma
+
 
 public import Mathlib.Algebra.BigOperators.Fin
 public import Mathlib.Algebra.Order.BigOperators.Group.Finset
@@ -23,6 +28,24 @@ public import Mathlib.Order.WellFounded
 public import Mathlib.SetTheory.Cardinal.Finite
 public import Std.Sat.CNF
 
+/- Preserve source-module names and module-local elaboration caches when
+   flattening definitions. Every declaration is still checked by Lean. -/
+open Lean Elab Command in
+elab "source_context " source:str : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then
+    let original := (← getEnv).mainModule
+    modifyScope fun scope => { scope with opts := scope.opts.set `sourceContextRoot original.toString }
+  modifyEnv fun env =>
+    let env := env.setMainModule source.getString.toName
+    let env := Meta.auxLemmasExt.setState env {}
+    (private_decl% Lean.Meta.Match.matcherExt).setState env {}
+open Lean Elab Command in
+elab "end_source_context" : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then throwError "missing original Challenge module"
+  modifyEnv (·.setMainModule root.toName)
+
 @[expose] public section
 
 /-!
@@ -35,13 +58,14 @@ to the specified primary-input bridge interface. The decoder graph, clause
 semantics, size measure and physical equations are given below.
 -/
 
+source_context "Controller.CNF.Basic"
 /- Definitions from Controller.CNF.Basic. -/
 namespace Controller.CNF
-abbrev OrderedFormula.Clause (α : Type u) := List (Std.Sat.Literal α)
+abbrev Literal (α : Type*) := Std.Sat.Literal α
+abbrev OrderedFormula.Clause (α : Type u) : Type u := List (Literal α)
 structure OrderedFormula (α : Type u) where
   clauses : Array (OrderedFormula.Clause α)
 
-abbrev Literal (α : Type*) := Std.Sat.Literal α
 abbrev Clause (α : Type*) := Controller.CNF.OrderedFormula.Clause α
 abbrev Formula (α : Type*) := Controller.CNF.OrderedFormula α
 abbrev FiniteFormula (v : Nat) := Formula (Fin v)
@@ -53,6 +77,7 @@ def Satisfies (a : α → Bool) (f : Formula α) : Prop :=
   ∀ c, c ∈ f.clauses → ClauseHolds a c
 end Controller.CNF
 
+source_context "Controller.Horn.DualHorn"
 /- Definitions from Controller.Horn.DualHorn. -/
 namespace Controller.Horn
 open CNF
@@ -63,6 +88,7 @@ def DualHornClause (c : Clause α) : Prop := Tautological c ∨ NegativeUnique c
 def DualHorn (f : Formula α) : Prop := ∀ c ∈ f.clauses, DualHornClause c
 end Controller.Horn
 
+source_context "Controller.Horn.Rules"
 /- Definitions from Controller.Horn.Rules. -/
 namespace Controller.Horn.Worklist
 open CNF
@@ -89,6 +115,7 @@ def compileClause (clause : Clause α) : Rule α :=
     | head :: _ => .negative head (signedLabels clause true)
 end Controller.Horn.Worklist
 
+source_context "Controller.Basic.Assignments"
 /- Definitions from Controller.Basic.Assignments. -/
 namespace Controller
 abbrev Channel (n : ℕ) := Fin n
@@ -99,6 +126,7 @@ def setOfAssignment {n : ℕ} (a : Assignment n) : Finset (Channel n) :=
   Finset.univ.filter (fun i => a i = true)
 end Controller
 
+source_context "Controller.Basic.Admissible"
 /- Definitions from Controller.Basic.Admissible. -/
 namespace Controller
 /-- Physical image restriction; positive bus count is imposed by the physical model. -/
@@ -106,6 +134,7 @@ def Admissible {n : ℕ} (b : ℕ) (t : Channel n) (K : Finset (Channel n)) : Pr
   K.Nonempty ∧ (b = 1 → t ∈ K)
 end Controller
 
+source_context "Controller.Basic.Sizes"
 /- Definitions from Controller.Basic.Sizes. -/
 namespace Controller
 /-- Incidences are charged with multiplicity; roots include repeated outputs. -/
@@ -120,6 +149,7 @@ def DecoderSize.total (s : DecoderSize) : ℕ :=
   s.channels + s.nodes + s.children + s.guards + s.roots
 end Controller
 
+source_context "Controller.Decoder.Syntax"
 /- Definitions from Controller.Decoder.Syntax. -/
 namespace Controller.Decoder
 /-- A gate whose live children are among the preceding `available` nodes. -/
@@ -176,11 +206,21 @@ theorem childIndex_lt (graph : DAG n) (parent : Fin graph.nodeCount)
 /-- All represented nodes belong to the original guarded language. -/
 def Guarded (graph : DAG n) : Prop := ∀ index, (graph.node index).IsGuarded
 /-- Child occurrences in the stored table; shared references remain occurrences. -/
-def childIncidences (graph : DAG n) : ℕ :=
-  (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).children.length).sum
+def childIncidences : {n : Nat} → (graph : Controller.Decoder.DAG n) → Nat := fun {n : Nat} (graph : Controller.Decoder.DAG n) =>
+  @List.sum.{0} Nat instAddNat (@Zero.ofOfNat0.{0} Nat (instOfNatNat (nat_lit 0)))
+    (@List.ofFn.{0} Nat (@Controller.Decoder.DAG.nodeCount n graph)
+      fun (index : Fin (@Controller.Decoder.DAG.nodeCount n graph)) =>
+      @List.length.{0} (Fin (@Fin.val (@Controller.Decoder.DAG.nodeCount n graph) index))
+        (@Controller.Decoder.Gate.children n (@Fin.val (@Controller.Decoder.DAG.nodeCount n graph) index)
+          (@Controller.Decoder.DAG.node n graph index)))
 /-- Negative channel occurrences in the stored table. -/
-def guardIncidences (graph : DAG n) : ℕ :=
-  (List.ofFn fun index : Fin graph.nodeCount => (graph.node index).guardLabels.length).sum
+def guardIncidences : {n : Nat} → (graph : Controller.Decoder.DAG n) → Nat := fun {n : Nat} (graph : Controller.Decoder.DAG n) =>
+  @List.sum.{0} Nat instAddNat (@Zero.ofOfNat0.{0} Nat (instOfNatNat (nat_lit 0)))
+    (@List.ofFn.{0} Nat (@Controller.Decoder.DAG.nodeCount n graph)
+      fun (index : Fin (@Controller.Decoder.DAG.nodeCount n graph)) =>
+      @List.length.{0} (Controller.Channel n)
+        (@Controller.Decoder.Gate.guardLabels n (@Fin.val (@Controller.Decoder.DAG.nodeCount n graph) index)
+          (@Controller.Decoder.DAG.node n graph index)))
 /-- Size components for the common decoder resource interface. -/
 def size (graph : DAG n) : DecoderSize where
   channels := n
@@ -193,6 +233,7 @@ def countedSize (graph : DAG n) : ℕ := graph.size.total
 end DAG
 end Controller.Decoder
 
+source_context "Controller.Decoder.Eval"
 /- Definitions from Controller.Decoder.Eval. -/
 namespace Controller.Decoder
 namespace Gate
@@ -209,6 +250,7 @@ decreasing_by exact graph.childIndex_lt index child
 end DAG
 end Controller.Decoder
 
+source_context "Controller.Physical.Controller"
 /- Definitions from Controller.Physical.Controller. -/
 namespace Controller.Physical
 /-- Independent enable and request inputs of a controller with at least one bus.
@@ -283,6 +325,7 @@ def ObservationsDiffer {n q : ℕ} (outputs : Fin q → Assignment n → Bool)
   ∃ k, outputs k healthy ≠ outputs k faulty
 end Controller.Physical
 
+source_context "Controller.Physical.Faults"
 /- Definitions from Controller.Physical.Faults. -/
 namespace Controller.Physical
 /-- A target and a nonempty disjoint driver set for the bridge interface. -/
@@ -330,6 +373,7 @@ def BridgeDetectable {n b q : ℕ} (bridge : Bridge n) (drive : Bool)
   ∃ input : PrimaryInput n b, ∃ wire, BridgeInputDetects bridge drive outputs input wire
 end Controller.Physical
 
+source_context "Controller.Physical.Realize"
 /- Definitions from Controller.Physical.Realize. -/
 namespace Controller.Physical
 /-- The suffix is zero except for the desired set on its first bus when the
@@ -352,6 +396,7 @@ def realizeBridge {n b : ℕ} (bridge : Bridge n) (hb : 0 < b)
   request := realizeRequests bridge.target K b
 end Controller.Physical
 
+source_context "Controller.Reductions.DualHornDecoder"
 /- Definitions from Controller.Reductions.DualHornDecoder. -/
 namespace Controller.Reductions.DualHorn
 open Controller.CNF Controller.Decoder Controller.Horn.Worklist
@@ -387,6 +432,7 @@ def decoder (formula : FiniteFormula n) : DAG (n + 2) where
   roots := [⟨n + formula.clauses.size + 3, by omega⟩]
 end Controller.Reductions.DualHorn
 
+source_context "Controller.Reductions.DualHornModels"
 /- Definitions from Controller.Reductions.DualHornModels. -/
 namespace Controller.Reductions.DualHorn
 open Controller.CNF Controller.Decoder
@@ -404,12 +450,16 @@ def modelBridge (n : ℕ) : Physical.Bridge (n + 2) where
     simp only [Finset.mem_singleton]
     exact Ne.symm helper_ne_target
 /-- The sole observed coordinate is the actual stored decoder root. -/
+def setOutput (formula : FiniteFormula n) (K : Finset (Channel (n + 2))) : Bool :=
+  (decoder formula).eval (assignmentOfSet K)
+    ⟨n + formula.clauses.size + 3, by change n + formula.clauses.size + 3 < n + formula.clauses.size + 4; omega⟩
 def modelObservation (formula : FiniteFormula n) :
     Fin 1 → Assignment (n + 2) → Bool := fun _ values =>
   (decoder formula).eval values
     ⟨n + formula.clauses.size + 3, by change n + formula.clauses.size + 3 < n + formula.clauses.size + 4; omega⟩
 end Controller.Reductions.DualHorn
 
+source_context "Controller.Reductions.DualHornSize"
 /- Definitions from Controller.Reductions.DualHornSize. -/
 open scoped BigOperators
 namespace Controller.Reductions.DualHorn
@@ -419,6 +469,7 @@ def sourceLiteralIncidences (formula : FiniteFormula n) : ℕ :=
   (List.ofFn fun row : Fin formula.clauses.size => formula.clauses[row].length).sum
 end Controller.Reductions.DualHorn
 
+source_context "Controller.Decoder.Cone"
 /- Definitions from Controller.Decoder.Cone. -/
 namespace Controller.Decoder
 namespace Gate
@@ -441,6 +492,7 @@ end Selection
 end DAG
 end Controller.Decoder
 
+source_context "Controller.Decoder.Forest"
 /- Definitions from Controller.Decoder.Forest. -/
 namespace Controller.Decoder
 namespace Gate
@@ -477,6 +529,7 @@ end Selection
 end DAG
 end Controller.Decoder
 
+source_context "Controller.Reductions.GraphCover"
 /- Definitions from Controller.Reductions.GraphCover. -/
 namespace Controller.Reductions
 open Decoder
@@ -575,12 +628,18 @@ theorem Controller.Reductions.cover_physical_detects_only_covers (J : Enumerated
       setOfAssignment (Physical.bridgeQualifiers (coverBridge driver) input wire) = coverSet C := by
   sorry
 
+/-- The same positive-bus witness used by the source realizer. -/
+theorem Controller.Reductions.cover_realizer_driver_request_zero._proof_1 : 0 < 1 := by decide
+
 open Controller Controller.CNF Controller.Decoder Controller.Reductions Controller.Reductions.DualHorn in
 /-- The canonical realization of an eligible qualifier set detects exactly when that set consists of the target and a vertex cover. -/
 theorem Controller.Reductions.cover_realizer_detects_iff (J : EnumeratedGraph n m) (edge : Fin m)
     (driver : Fin n) (K : Finset (Channel (n + 1)))
     (legal : Admissible 1 (coverTarget n) K) :
     Physical.BridgeInputDetects (coverBridge driver) true (coverObservation J)
-      (Physical.realizeBridge (coverBridge driver) (by decide : 0 < 1) K) true ↔
+      (Physical.realizeBridge (coverBridge driver)
+        Controller.Reductions.cover_realizer_driver_request_zero._proof_1 K) true ↔
       ∃ C, J.IsCover C ∧ K = coverSet C := by
   sorry
+
+end_source_context

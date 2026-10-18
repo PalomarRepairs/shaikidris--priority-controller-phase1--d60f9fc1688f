@@ -1,4 +1,12 @@
 module
+public meta import Lean.Elab.Tactic.ElabTerm
+public meta import Lean.Elab.Command
+public meta import Lean.Meta.Match.Match
+meta import all Lean.Meta.Match.Match
+public meta import Lean.Meta.Constructions.SparseCasesOn
+meta import all Lean.Meta.Constructions.SparseCasesOn
+public meta import Lean.Meta.Tactic.AuxLemma
+
 public import Mathlib.Algebra.Order.BigOperators.Group.Finset
 public import Mathlib.Data.Finset.Basic
 public import Mathlib.Data.Finset.BooleanAlgebra
@@ -25,6 +33,29 @@ public import Mathlib.Tactic.Linarith
 public import Mathlib.Tactic.NormNum
 public import Mathlib.Tactic.Ring
 public import Std.Sat.CNF
+/- Preserve source-module names and module-local elaboration caches when
+   flattening definitions. Every declaration is still checked by Lean. -/
+open Lean Elab Command in
+elab "source_context " source:str : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then
+    let original := (← getEnv).mainModule
+    modifyScope fun scope => { scope with opts := scope.opts.set `sourceContextRoot original.toString }
+  modifyEnv fun env =>
+    let env := env.setMainModule source.getString.toName
+    let env := Meta.auxLemmasExt.setState env {}
+    let env := (private_decl% Lean.Meta.Match.matcherExt).setState env {}
+    (private_decl% Lean.Meta.sparseCasesOnCacheExt).setState env {}
+open Lean Elab Command in
+elab "end_source_context" : command => do
+  let root := (← getOptions).get `sourceContextRoot ""
+  if root.isEmpty then throwError "missing original Challenge module"
+  modifyEnv (·.setMainModule root.toName)
+
+set_option backward.privateInPublic true
+open Lean Elab Tactic in
+elab "source_exact " proof:term : tactic => withoutExporting <| Lean.Meta.withTransparency .all do
+  evalTactic (← `(tactic| exact $proof))
 @[expose] public section
 noncomputable section
 /-!
@@ -34,8 +65,17 @@ are explicit. Definition holes identify only implementation witnesses; the
 selected universal theorems constrain their executions or returned results.
 The selected statements retain the exact assumptions of the proof library.
 -/
+/- Source-exported auxiliary proofs; addDecl checks every complete proof. -/
+open Lean Elab Command in
+run_cmd do
+  let e0 : Lean.Expr := .sort (Lean.Level.succ (Lean.Level.param `u_1)); let e1 : Lean.Expr := .const (`AddMonoidWithOne) ([Lean.Level.param `u_1]); let e2 : Lean.Expr := .bvar 0; let e3 : Lean.Expr := .app e1 e2; let e4 : Lean.Expr := .const (`PartialOrder) ([Lean.Level.param `u_1]); let e5 : Lean.Expr := .bvar 1; let e6 : Lean.Expr := .app e4 e5; let e7 : Lean.Expr := .const (`ZeroLEOneClass) ([Lean.Level.param `u_1]); let e8 : Lean.Expr := .bvar 2; let e9 : Lean.Expr := .app e7 e8; let e10 : Lean.Expr := .const (`AddZero.toZero) ([Lean.Level.param `u_1]); let e11 : Lean.Expr := .app e10 e8; let e12 : Lean.Expr := .const (`AddZeroClass.toAddZero) ([Lean.Level.param `u_1]); let e13 : Lean.Expr := .app e12 e8; let e14 : Lean.Expr := .const (`AddMonoid.toAddZeroClass) ([Lean.Level.param `u_1]); let e15 : Lean.Expr := .app e14 e8; let e16 : Lean.Expr := .const (`AddMonoidWithOne.toAddMonoid) ([Lean.Level.param `u_1]); let e17 : Lean.Expr := .app e16 e8; let e18 : Lean.Expr := .app e17 e5; let e19 : Lean.Expr := .app e15 e18; let e20 : Lean.Expr := .app e13 e19; let e21 : Lean.Expr := .app e11 e20; let e22 : Lean.Expr := .app e9 e21; let e23 : Lean.Expr := .const (`AddMonoidWithOne.toOne) ([Lean.Level.param `u_1]); let e24 : Lean.Expr := .app e23 e8; let e25 : Lean.Expr := .app e24 e5; let e26 : Lean.Expr := .app e22 e25; let e27 : Lean.Expr := .const (`Preorder.toLE) ([Lean.Level.param `u_1]); let e28 : Lean.Expr := .app e27 e8; let e29 : Lean.Expr := .const (`PartialOrder.toPreorder) ([Lean.Level.param `u_1]); let e30 : Lean.Expr := .app e29 e8; let e31 : Lean.Expr := .app e30 e2; let e32 : Lean.Expr := .app e28 e31; let e33 : Lean.Expr := .app e26 e32; let e34 : Lean.Expr := .const (`NeZero) ([Lean.Level.param `u_1]); let e35 : Lean.Expr := .bvar 3; let e36 : Lean.Expr := .app e34 e35; let e37 : Lean.Expr := .app e10 e35; let e38 : Lean.Expr := .app e12 e35; let e39 : Lean.Expr := .app e14 e35; let e40 : Lean.Expr := .app e16 e35; let e41 : Lean.Expr := .app e40 e8; let e42 : Lean.Expr := .app e39 e41; let e43 : Lean.Expr := .app e38 e42; let e44 : Lean.Expr := .app e37 e43; let e45 : Lean.Expr := .app e36 e44; let e46 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.param `u_1]); let e47 : Lean.Expr := .app e46 e35; let e48 : Lean.Expr := .lit (Lean.Literal.natVal 1); let e49 : Lean.Expr := .app e47 e48; let e50 : Lean.Expr := .const (`One.toOfNat1) ([Lean.Level.param `u_1]); let e51 : Lean.Expr := .app e50 e35; let e52 : Lean.Expr := .app e23 e35; let e53 : Lean.Expr := .app e52 e8; let e54 : Lean.Expr := .app e51 e53; let e55 : Lean.Expr := .app e49 e54; let e56 : Lean.Expr := .app e45 e55; let e57 : Lean.Expr := .const (`AddLeftMono) ([Lean.Level.param `u_1]); let e58 : Lean.Expr := .bvar 4; let e59 : Lean.Expr := .app e57 e58; let e60 : Lean.Expr := .const (`AddSemigroup.toAdd) ([Lean.Level.param `u_1]); let e61 : Lean.Expr := .app e60 e58; let e62 : Lean.Expr := .const (`AddMonoid.toAddSemigroup) ([Lean.Level.param `u_1]); let e63 : Lean.Expr := .app e62 e58; let e64 : Lean.Expr := .app e16 e58; let e65 : Lean.Expr := .app e64 e35; let e66 : Lean.Expr := .app e63 e65; let e67 : Lean.Expr := .app e61 e66; let e68 : Lean.Expr := .app e59 e67; let e69 : Lean.Expr := .app e27 e58; let e70 : Lean.Expr := .app e29 e58; let e71 : Lean.Expr := .app e70 e8; let e72 : Lean.Expr := .app e69 e71; let e73 : Lean.Expr := .app e68 e72; let e74 : Lean.Expr := .const (`Eq) ([Lean.Level.succ (Lean.Level.zero)]); let e75 : Lean.Expr := .sort (Lean.Level.zero); let e76 : Lean.Expr := .app e74 e75; let e77 : Lean.Expr := .const (`LT.lt) ([Lean.Level.param `u_1]); let e78 : Lean.Expr := .bvar 5; let e79 : Lean.Expr := .app e77 e78; let e80 : Lean.Expr := .const (`Preorder.toLT) ([Lean.Level.param `u_1]); let e81 : Lean.Expr := .app e80 e78; let e82 : Lean.Expr := .app e29 e78; let e83 : Lean.Expr := .app e82 e35; let e84 : Lean.Expr := .app e81 e83; let e85 : Lean.Expr := .app e79 e84; let e86 : Lean.Expr := .app e46 e78; let e87 : Lean.Expr := .lit (Lean.Literal.natVal 0); let e88 : Lean.Expr := .app e86 e87; let e89 : Lean.Expr := .const (`Zero.toOfNat0) ([Lean.Level.param `u_1]); let e90 : Lean.Expr := .app e89 e78; let e91 : Lean.Expr := .app e10 e78; let e92 : Lean.Expr := .app e12 e78; let e93 : Lean.Expr := .app e14 e78; let e94 : Lean.Expr := .app e16 e78; let e95 : Lean.Expr := .app e94 e58; let e96 : Lean.Expr := .app e93 e95; let e97 : Lean.Expr := .app e92 e96; let e98 : Lean.Expr := .app e91 e97; let e99 : Lean.Expr := .app e90 e98; let e100 : Lean.Expr := .app e88 e99; let e101 : Lean.Expr := .app e85 e100; let e102 : Lean.Expr := .lit (Lean.Literal.natVal 2); let e103 : Lean.Expr := .app e86 e102; let e104 : Lean.Expr := .const (`instOfNatAtLeastTwo) ([Lean.Level.param `u_1]); let e105 : Lean.Expr := .app e104 e78; let e106 : Lean.Expr := .app e105 e102; let e107 : Lean.Expr := .const (`AddMonoidWithOne.toNatCast) ([Lean.Level.param `u_1]); let e108 : Lean.Expr := .app e107 e78; let e109 : Lean.Expr := .app e108 e58; let e110 : Lean.Expr := .app e106 e109; let e111 : Lean.Expr := .const (`Nat.instAtLeastTwoHAddOfNat) ([]); let e112 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.zero]); let e113 : Lean.Expr := .const (`Nat) ([]); let e114 : Lean.Expr := .app e112 e113; let e115 : Lean.Expr := .app e114 e48; let e116 : Lean.Expr := .const (`instOfNatNat) ([]); let e117 : Lean.Expr := .app e116 e48; let e118 : Lean.Expr := .app e115 e117; let e119 : Lean.Expr := .app e111 e118; let e120 : Lean.Expr := .const (`Nat.instNeZeroSucc) ([]); let e121 : Lean.Expr := .app e114 e87; let e122 : Lean.Expr := .app e116 e87; let e123 : Lean.Expr := .app e121 e122; let e124 : Lean.Expr := .app e120 e123; let e125 : Lean.Expr := .app e119 e124; let e126 : Lean.Expr := .app e110 e125; let e127 : Lean.Expr := .app e103 e126; let e128 : Lean.Expr := .app e101 e127; let e129 : Lean.Expr := .app e76 e128; let e130 : Lean.Expr := .const (`True) ([]); let e131 : Lean.Expr := .app e129 e130; let e132 : Lean.Expr := .forallE .anonymous e73 e131 (Lean.BinderInfo.instImplicit); let e133 : Lean.Expr := .forallE .anonymous e56 e132 (Lean.BinderInfo.instImplicit); let e134 : Lean.Expr := .forallE .anonymous e33 e133 (Lean.BinderInfo.instImplicit); let e135 : Lean.Expr := .forallE .anonymous e6 e134 (Lean.BinderInfo.instImplicit); let e136 : Lean.Expr := .forallE .anonymous e3 e135 (Lean.BinderInfo.instImplicit); let e137 : Lean.Expr := .forallE .anonymous e0 e136 (Lean.BinderInfo.implicit); let e138 : Lean.Expr := .const (`eq_true) ([]); let e139 : Lean.Expr := .app e138 e128; let e140 : Lean.Expr := .const (`zero_lt_two) ([Lean.Level.param `u_1]); let e141 : Lean.Expr := .app e140 e78; let e142 : Lean.Expr := .app e141 e58; let e143 : Lean.Expr := .app e142 e35; let e144 : Lean.Expr := .app e143 e8; let e145 : Lean.Expr := .app e144 e5; let e146 : Lean.Expr := .app e145 e2; let e147 : Lean.Expr := .app e139 e146; let e148 : Lean.Expr := .lam .anonymous e73 e147 (Lean.BinderInfo.instImplicit); let e149 : Lean.Expr := .lam .anonymous e56 e148 (Lean.BinderInfo.instImplicit); let e150 : Lean.Expr := .lam .anonymous e33 e149 (Lean.BinderInfo.instImplicit); let e151 : Lean.Expr := .lam .anonymous e6 e150 (Lean.BinderInfo.instImplicit); let e152 : Lean.Expr := .lam .anonymous e3 e151 (Lean.BinderInfo.instImplicit); let e153 : Lean.Expr := .lam .anonymous e0 e152 (Lean.BinderInfo.implicit); let fact : Lean.TheoremVal := { name := `zero_lt_two._simp_1, levelParams := [`u_1], type := e137, value := e153 }; if let some old := (← getEnv).toKernelEnv.find? fact.name then unless old == .thmInfo fact do throwError "conflicting Source auxiliary fact" else liftCoreM <| addDecl (.thmDecl fact)
+open Lean Elab Command in
+run_cmd do
+  let e0 : Lean.Expr := .const (`Nat) ([]); let e1 : Lean.Expr := .const (`Eq) ([Lean.Level.succ (Lean.Level.zero)]); let e2 : Lean.Expr := .sort (Lean.Level.zero); let e3 : Lean.Expr := .app e1 e2; let e4 : Lean.Expr := .const (`LT.lt) ([Lean.Level.zero]); let e5 : Lean.Expr := .app e4 e0; let e6 : Lean.Expr := .const (`instLTNat) ([]); let e7 : Lean.Expr := .app e5 e6; let e8 : Lean.Expr := .bvar 0; let e9 : Lean.Expr := .app e7 e8; let e10 : Lean.Expr := .const (`HAdd.hAdd) ([Lean.Level.zero, Lean.Level.zero, Lean.Level.zero]); let e11 : Lean.Expr := .app e10 e0; let e12 : Lean.Expr := .app e11 e0; let e13 : Lean.Expr := .app e12 e0; let e14 : Lean.Expr := .const (`instHAdd) ([Lean.Level.zero]); let e15 : Lean.Expr := .app e14 e0; let e16 : Lean.Expr := .const (`instAddNat) ([]); let e17 : Lean.Expr := .app e15 e16; let e18 : Lean.Expr := .app e13 e17; let e19 : Lean.Expr := .app e18 e8; let e20 : Lean.Expr := .const (`OfNat.ofNat) ([Lean.Level.zero]); let e21 : Lean.Expr := .app e20 e0; let e22 : Lean.Expr := .lit (Lean.Literal.natVal 1); let e23 : Lean.Expr := .app e21 e22; let e24 : Lean.Expr := .const (`instOfNatNat) ([]); let e25 : Lean.Expr := .app e24 e22; let e26 : Lean.Expr := .app e23 e25; let e27 : Lean.Expr := .app e19 e26; let e28 : Lean.Expr := .app e9 e27; let e29 : Lean.Expr := .app e3 e28; let e30 : Lean.Expr := .const (`True) ([]); let e31 : Lean.Expr := .app e29 e30; let e32 : Lean.Expr := .forallE .anonymous e0 e31 (Lean.BinderInfo.default); let e33 : Lean.Expr := .const (`eq_true) ([]); let e34 : Lean.Expr := .app e33 e28; let e35 : Lean.Expr := .const (`Nat.lt_add_one) ([]); let e36 : Lean.Expr := .app e35 e8; let e37 : Lean.Expr := .app e34 e36; let e38 : Lean.Expr := .lam .anonymous e0 e37 (Lean.BinderInfo.default); let fact : Lean.TheoremVal := { name := `Nat.lt_add_one._simp_1, levelParams := [], type := e32, value := e38 }; if let some old := (← getEnv).toKernelEnv.find? fact.name then unless old == .thmInfo fact do throwError "conflicting Source auxiliary fact" else liftCoreM <| addDecl (.thmDecl fact)
+source_context "Controller.CNF.Basic"
 namespace Controller.CNF
-abbrev OrderedFormula.Clause (α : Type u) := List (Std.Sat.Literal α)
+abbrev Literal (α : Type*) := Std.Sat.Literal α
+abbrev OrderedFormula.Clause (α : Type u) : Type u := List (Literal α)
 structure OrderedFormula (α : Type u) where
   (clauses : Array (OrderedFormula.Clause α))
 namespace OrderedFormula
@@ -48,7 +88,6 @@ def Clause.relabel (r : α → β) (c : Clause α) : Clause β := c.map (fun (i,
 def relabel (r : α → β) (f : OrderedFormula α) : OrderedFormula β := ⟨f.clauses.map (Clause.relabel r)⟩
 def toStd (f : OrderedFormula α) : Std.Sat.CNF α := ⟨f.clauses.map Std.Sat.CNF.Clause.ofLiterals⟩
 end OrderedFormula
-abbrev Literal (α : Type*) := Std.Sat.Literal α
 abbrev Clause (α : Type*) := Controller.CNF.OrderedFormula.Clause α
 abbrev Formula (α : Type*) := Controller.CNF.OrderedFormula α
 abbrev FiniteFormula (v : Nat) := Formula (Fin v)
@@ -61,20 +100,29 @@ def Unsatisfiable (f : Formula α) : Prop := ¬Satisfiable f
 def normalizeClause [DecidableEq α] (c : Clause α) : Clause α := c.eraseDups
 def ofClauses (cs : List (Clause α)) : Formula α := ⟨cs.toArray⟩
 end Controller.CNF
+source_context "Controller.CNF.Relabel"
 namespace Controller.CNF
 abbrev relabel (r : α → β) (f : Formula α) : Formula β := Controller.CNF.OrderedFormula.relabel r f
 end Controller.CNF
+source_context "Controller.CNF.Gates"
 namespace Controller.CNF
 inductive Gate (α : Type*) where
   | and (inputs : List (Literal α)) | or (inputs : List (Literal α)) | xor (left right : Literal α) | alias (input : Literal α) | not (input : Literal α) | constant (value : Bool)
   deriving DecidableEq, Repr
 namespace Gate
+def inputs : Gate α → List (Literal α)
+  | .and ls | .or ls => ls
+  | .xor l r => [l, r]
+  | .alias l | .not l => [l]
+  | .constant _ => []
 def clauses (out : Literal α) : Gate α → List (Clause α) | .and ls => ls.map (fun l => [negate out, l]) ++ [out :: ls.map negate] | .or ls => ls.map (fun l => [out, negate l]) ++ [negate out :: ls] | .xor l r => [[l, r, negate out], [negate l, negate r, negate out], [l, negate r, out], [negate l, r, out]] | .alias l => [[negate out, l], [out, negate l]] | .not l => [[out, l], [negate out, negate l]] | .constant b => [[if b then out else negate out]]
 end Gate
 end Controller.CNF
+source_context "Controller.Basic.Assignments"
 namespace Controller
 abbrev Channel (n : ℕ) := Fin n
 end Controller
+source_context "Controller.Decoder.Syntax"
 namespace Controller.Decoder
 inductive Gate (n available : ℕ) where
   | zero : Gate n available | input (channel : Channel n) : Gate n available | disj (children : List (Fin available)) : Gate n available | guard (child : Fin available) (labels : List (Channel n)) : Gate n available | liveAnd (left right : Fin available) : Gate n available
@@ -93,11 +141,13 @@ theorem childIndex_lt (graph : DAG n) (parent : Fin graph.nodeCount) (child : Fi
 def Guarded (graph : DAG n) : Prop := ∀ index, (graph.node index).IsGuarded
 end DAG
 end Controller.Decoder
+source_context "Controller.Physical.Faults"
 namespace Controller.Physical
 structure Bridge (n : ℕ) where
   (target : Channel n) (drivers : Finset (Channel n)) (drivers_nonempty : drivers.Nonempty) (target_not_mem : target ∉ drivers)
 def Bridge.remaining {n : ℕ} (bridge : Bridge n) : Finset (Channel n) := Finset.univ \ insert bridge.target bridge.drivers
 end Controller.Physical
+source_context "Controller.Native.Encode"
 namespace Controller.Native
 inductive Side where
   | healthy | faulty
@@ -122,6 +172,8 @@ namespace Parameters
 def firstBus (parameters : Parameters) : Fin parameters.buses := ⟨0, parameters.positiveBuses⟩
 end Parameters
 end Controller.Native
+source_context "Controller.Resolution.Trace"
+attribute [-instance] instIsPartialOrder_mathlib
 namespace Controller.Resolution
 open CNF
 abbrev Rows (v : Nat) := Nat → Option (Clause (Fin v))
@@ -160,12 +212,15 @@ def check (f : FiniteFormula v) (trace : Trace v) : Bool :=
       | some c => c.isEmpty
   else false
 end Controller.Resolution
+attribute [instance 1000] instIsPartialOrder_mathlib
+source_context "Controller.NativeProof.Rows"
 namespace Controller.NativeProof.Rows
 open Controller.CNF Controller.Resolution
 def mapClause (rename : α → Fin v) (clause : Clause α) : Clause (Fin v) := clause.map (fun literal => (rename literal.1, literal.2))
 structure Available (state : State v) (clause : Clause (Fin v)) where
   (id : Nat) (present : state.rows id = some clause) (bound : id ≤ state.lastId)
 end Controller.NativeProof.Rows
+source_context "Controller.Native.BoundedEncode"
 namespace Controller.Native.Bounded
 inductive Junction where
   | conjunction | disjunction
@@ -179,6 +234,9 @@ structure Producer (α : Type*) where
   deriving DecidableEq, Repr
 def Producer.rows (producer : Producer α) : List (CNF.Clause α) := producer.gate.clauses producer.output
 end Controller.Native.Bounded
+source_context "Controller.Native.LayoutTransport"
+section
+attribute [local instance 2000] Nat.instPartialOrder
 namespace Controller.Native.InterfaceAlias
 inductive Root (n b : ℕ) where
   | enable (channel : Fin n) | request (bus : Fin b) (channel : Fin n)
@@ -212,8 +270,34 @@ def pairLayer (junction : Bounded.Junction) (lastID : ℕ) : List (CNF.Literal �
       ⟨(lastID + 1, true) :: rest.handles, ⟨(lastID + 1, true), junction.gate [left, right]⟩ :: rest.producers, rest.nextID⟩
 theorem pairLayer_length (junction : Bounded.Junction) (lastID : ℕ) (inputs : List (CNF.Literal ℕ)) : (pairLayer junction lastID inputs).handles.length = (inputs.length + 1) / 2 := by
   induction inputs using List.twoStepInduction generalizing lastID with
-  | nil => simp [pairLayer]
-  | singleton input => simp [pairLayer]
+  | nil => simp (disch := source_exact (@of_eq_true
+  (@LT.lt.{0} Nat (@Preorder.toLT.{0} Nat (@PartialOrder.toPreorder.{0} Nat Nat.instPartialOrder))
+    (@OfNat.ofNat.{0} Nat (nat_lit 0)
+      (@Zero.toOfNat0.{0} Nat
+        (@AddZero.toZero.{0} Nat
+          (@AddZeroClass.toAddZero.{0} Nat
+            (@AddMonoid.toAddZeroClass.{0} Nat (@AddMonoidWithOne.toAddMonoid.{0} Nat Nat.instAddMonoidWithOne))))))
+    (@OfNat.ofNat.{0} Nat (nat_lit 2)
+      (@instOfNatAtLeastTwo.{0} Nat (nat_lit 2) (@AddMonoidWithOne.toNatCast.{0} Nat Nat.instAddMonoidWithOne)
+        (@Nat.instAtLeastTwoHAddOfNat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))
+          (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))
+  (@zero_lt_two._simp_1.{0} Nat Nat.instAddMonoidWithOne Nat.instPartialOrder Nat.instZeroLEOneClass
+    (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+    (@IsOrderedAddMonoid.toAddLeftMono.{0} Nat Nat.instAddCommMonoid Nat.instPreorder Nat.instIsOrderedAddMonoid)))) [pairLayer]
+  | singleton input => simp (disch := source_exact (@of_eq_true
+  (@LT.lt.{0} Nat (@Preorder.toLT.{0} Nat (@PartialOrder.toPreorder.{0} Nat Nat.instPartialOrder))
+    (@OfNat.ofNat.{0} Nat (nat_lit 0)
+      (@Zero.toOfNat0.{0} Nat
+        (@AddZero.toZero.{0} Nat
+          (@AddZeroClass.toAddZero.{0} Nat
+            (@AddMonoid.toAddZeroClass.{0} Nat (@AddMonoidWithOne.toAddMonoid.{0} Nat Nat.instAddMonoidWithOne))))))
+    (@OfNat.ofNat.{0} Nat (nat_lit 2)
+      (@instOfNatAtLeastTwo.{0} Nat (nat_lit 2) (@AddMonoidWithOne.toNatCast.{0} Nat Nat.instAddMonoidWithOne)
+        (@Nat.instAtLeastTwoHAddOfNat (@OfNat.ofNat.{0} Nat (nat_lit 1) (instOfNatNat (nat_lit 1)))
+          (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))))))
+  (@zero_lt_two._simp_1.{0} Nat Nat.instAddMonoidWithOne Nat.instPartialOrder Nat.instZeroLEOneClass
+    (@Nat.instNeZeroSucc (@OfNat.ofNat.{0} Nat (nat_lit 0) (instOfNatNat (nat_lit 0))))
+    (@IsOrderedAddMonoid.toAddLeftMono.{0} Nat Nat.instAddCommMonoid Nat.instPreorder Nat.instIsOrderedAddMonoid)))) [pairLayer]
   | cons_cons left right tail inductionHypothesis _ =>
       simp only [pairLayer, List.length_cons, inductionHypothesis]
       omega
@@ -367,6 +451,8 @@ def assertions (parameters : Parameters) : List (CNF.Literal ℕ) :=
     ((slots (.primary .wire)).1, parameters.drive), slots (.internal .detected)]
 def formula (parameters : Parameters) : CNF.Formula ℕ := equationFormula parameters ++ CNF.ofClauses ((assertions parameters).map fun literal => [literal])
 end Controller.Native.SourceController
+end
+source_context "Controller.NativeProof.SourceFoldOccurrences"
 namespace Controller.NativeProof.SourceFoldOccurrences
 open Controller.Native Controller.Native.SourceController Controller.CNF
 variable {parameters : Parameters}
@@ -376,6 +462,7 @@ def decoderStart (side : Side) : Cursor parameters :=
   | .faulty => attachDecoder parameters .healthy
       (originalObservations parameters (controller parameters))
 end Controller.NativeProof.SourceFoldOccurrences
+source_context "Controller.NativeProof.SourceStageCongruence"
 namespace Controller.NativeProof.SourceStageCongruence
 open Controller.Native Controller.Native.SourceController Controller.CNF
 open Controller.Resolution
@@ -384,6 +471,7 @@ variable {parameters : Parameters} {v : Nat}
 structure SourcePrefix (rename : Nat → Fin v) where
   (state : State v) (steps : List (Step v)) (checked : runSteps (initialState (relabel rename (SourceController.formula parameters))) steps = some state)
 end Controller.NativeProof.SourceStageCongruence
+source_context "Controller.NativeProof.Compiler"
 namespace Controller.NativeProof.Compiler
 open Controller.CNF Controller.Resolution
 open Controller.Native Controller.Native.SourceController
@@ -402,6 +490,7 @@ def nativeFormula (parameters : Parameters) : FiniteFormula (variableCount param
   let count := variableCount parameters
   relabel (fun source => ⟨source % count, Nat.mod_lt _ (by unfold count variableCount; omega)⟩) (formula parameters)
 end Controller.NativeProof.Compiler
+source_context "Controller.Cost.Resolution"
 namespace Controller.Cost.NativeResolution
 open Controller Controller.CNF Controller.Resolution
 open Controller.Native Controller.Native.SourceController
@@ -430,6 +519,7 @@ def nativeEncodedSize (parameters : Parameters) : Nat := NativeProof.Compiler.va
 /-- native refutation encoded cubic: Ordinary resolution and observation wrappers. -/
 theorem native_refutation_encoded_cubic (parameters : Parameters) (raw : parameters.layout = .raw) (guarded : parameters.decoder.Guarded) (unsat : Unsatisfiable (formula parameters)) : ∃ result : NativeProof.Compiler.Refutation (parameters := parameters) (NativeProof.Compiler.canonicalRename parameters), check (NativeProof.Compiler.nativeFormula parameters) result.trace = true ∧ result.proofPrefix.steps.length ≤ 100000 * nativeEncodedSize parameters ^ 3 := by sorry
 end Controller.Cost.NativeResolution
+source_context "Controller.Native.ObservationProjection"
 namespace Controller.Native.ObservationProjection
 open CNF
 inductive RequirementTree (ρ : Type*) where
@@ -463,6 +553,7 @@ def RequirementTree.rows (tree : RequirementTree ρ) (path : List Bool) : List (
         left.rows (path ++ [false]) ++ right.rows (path ++ [true])
 def OptionalClause.clause (clause : OptionalClause σ ι ρ) : Clause (Sum σ (PrivateActivity ι ρ)) := (Sum.inr (.internal clause.premise), false) :: (clause.alternatives.map (fun alternative => (Sum.inr alternative, true)) ++ clause.signals.map (fun literal => (Sum.inl literal.1, literal.2)))
 end Controller.Native.ObservationProjection
+source_context "Controller.NativeProof.Wrapper"
 namespace Controller.NativeProof.Wrapper
 open Controller.CNF Controller.Resolution
 open Controller.Native.ObservationProjection
@@ -479,11 +570,15 @@ def taggedCoreRows (parameters : Parameters) {α : Type} : List (Clause (Sum Nat
 def optionalInputRows (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) := taggedCoreRows parameters ++ optionalRows wrapper
 def optionalFiniteInput (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) (rename : Sum Nat (PrivateActivity (Fin internalCount) (Fin parameters.decoder.roots.length)) → Fin v) : FiniteFormula v := ofClauses ((optionalInputRows parameters wrapper).map (Rows.mapClause rename))
 end Controller.NativeProof.Wrapper
+source_context "Controller.NativeProof.WrapperCanonical"
 namespace Controller.NativeProof.Wrapper
 open Controller.CNF Controller.Resolution Controller.Native Controller.Native.SourceController
 open Controller.Native.ObservationProjection
 variable {internalCount : Nat}
 abbrev WrapperLabel (parameters : Parameters) (internalCount : Nat) := Sum Nat (PrivateActivity (Fin internalCount) (Fin parameters.decoder.roots.length)) local instance (parameters : Parameters) : BEq (WrapperLabel parameters internalCount) := ⟨fun first second => decide (first = second)⟩
+local instance (parameters : Parameters) : LawfulBEq (WrapperLabel parameters internalCount) where
+  eq_of_beq := by intro first second same; exact of_decide_eq_true same
+  rfl := by intro label; exact decide_eq_true rfl
 def canonicalWrapperLabels (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) : List (WrapperLabel parameters internalCount) := ((optionalInputRows parameters wrapper).flatMap (fun clause => clause.map Prod.fst)).dedup
 def canonicalWrapperCount (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) : Nat := (canonicalWrapperLabels parameters wrapper).length + 1
 def canonicalLabelIndex (parameters : Parameters) (labels : List (WrapperLabel parameters internalCount)) (label : WrapperLabel parameters internalCount) : Fin (labels.length + 1) := ⟨labels.idxOf label, Nat.lt_succ_of_le List.idxOf_le_length⟩
@@ -491,6 +586,7 @@ def canonicalOptionalInput (parameters : Parameters) (wrapper : OptionalWrapper 
   let labels := canonicalWrapperLabels parameters wrapper
   optionalFiniteInput parameters wrapper (fun label => canonicalLabelIndex parameters labels label)
 end Controller.NativeProof.Wrapper
+source_context "Controller.NativeProof.WrapperSelectedEmission"
 namespace Controller.NativeProof.Wrapper
 open Controller.CNF Controller.Resolution Controller.Native Controller.Native.SourceController
 open Controller.Native.ObservationProjection
@@ -502,6 +598,7 @@ def canonicalSelectedInput (parameters : Parameters) (wrapper : OptionalWrapper 
   let labels := canonicalWrapperLabels parameters wrapper
   selectedFiniteInput parameters wrapper selected (fun label => canonicalLabelIndex parameters labels label)
 end Controller.NativeProof.Wrapper
+source_context "Controller.NativeProof.WrapperRuntime"
 namespace Controller.NativeProof.Wrapper
 open Controller.CNF Controller.Resolution Controller.Native Controller.Native.SourceController
 open Controller.Native.ObservationProjection
@@ -514,6 +611,7 @@ def declaredActivity {ρ : Type} [BEq ρ] (wrapper : OptionalWrapper Nat (Fin in
     | _ => false
 def wrapperSupported (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) : Bool := Compiler.supported parameters && ((wrapper.tree.leaves.all (fun output => decide (wrapper.observedPairs output = nativePair parameters output))) && wrapper.clauses.all (fun clause => clause.alternatives.all (declaredActivity wrapper)))
 end Controller.NativeProof.Wrapper
+source_context "Controller.Cost.WrapperResolution"
 namespace Controller.Cost.WrapperResolution
 open Controller.CNF Controller.Resolution
 open Controller.NativeProof
@@ -545,3 +643,5 @@ theorem runOptional_complete_cubic (parameters : Parameters) (wrapper : Optional
 theorem runSelected_complete_cubic (parameters : Parameters) (wrapper : OptionalWrapper Nat (Fin internalCount) (Fin parameters.decoder.roots.length)) (accepted : wrapperSupported parameters wrapper = true) (selected : List (Fin parameters.decoder.roots.length)) (nonempty : selected ≠ []) (leaves : ∀ output ∈ selected, output ∈ wrapper.tree.leaves) (unsat : Unsatisfiable (canonicalSelectedInput parameters wrapper selected)) : ∃ trace, runSelected parameters wrapper selected = some trace ∧ check (canonicalSelectedInput parameters wrapper selected) trace = true ∧ trace.steps.length ≤ 1000000 * (nativeCoreSize parameters selected.dedup.length) ^ 3 + 5 * selectedWrapperSize parameters wrapper selected := by sorry
 end Runtime
 end Controller.Cost.WrapperResolution
+
+end_source_context
